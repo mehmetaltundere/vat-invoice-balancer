@@ -1,120 +1,84 @@
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ShoppingBag, CheckCircle, Clock } from "lucide-react";
+"use client";
 
-export function RecentOrders() {
-  const sampleOrders = [
-    {
-      id: "IS-2026-8801",
-      customer: "Ahmet Yılmaz",
-      amount: "₺14,500.00",
-      vat: "₺2,900.00 (%20)",
-      status: "Dengelenmeyi Bekliyor",
-      badgeVariant: "warning" as const,
-      time: "10 dk önce",
-    },
-    {
-      id: "IS-2026-8802",
-      customer: "Mehmet Demir",
-      amount: "₺8,200.50",
-      vat: "₺1,640.10 (%20)",
-      status: "Dengelenmeyi Bekliyor",
-      badgeVariant: "warning" as const,
-      time: "42 dk önce",
-    },
-    {
-      id: "IS-2026-8803",
-      customer: "Ayşe Kaya",
-      amount: "₺23,100.00",
-      vat: "₺4,620.00 (%20)",
-      status: "Dengelendi & Dopigo'da",
-      badgeVariant: "success" as const,
-      time: "2 saat önce",
-    },
-    {
-      id: "IS-2026-8804",
-      customer: "Zeynep Arslan",
-      amount: "₺5,400.00",
-      vat: "₺540.00 (%10)",
-      status: "Dengelendi & Dopigo'da",
-      badgeVariant: "success" as const,
-      time: "3 saat önce",
-    },
-  ];
+import React from "react";
+import Link from "next/link";
+import { ArrowUpRight, ShoppingBag } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { OrderItem } from "@/components/invoice/master-order-list";
+
+interface RecentOrdersProps {
+  orders?: OrderItem[];
+}
+
+export function RecentOrders({ orders = [] }: RecentOrdersProps) {
+  const displayOrders = orders.slice(0, 5);
 
   return (
-    <Card className="col-span-full lg:col-span-2">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 bg-gray-50/50 pb-4">
         <div>
           <CardTitle className="text-xl font-semibold tracking-tight text-gray-900 flex items-center gap-2">
             <ShoppingBag className="h-4 w-4 text-[#0066CC]" />
-            IdeaSoft Son Sipariş Akışı
+            Son IdeaSoft Siparişleri
           </CardTitle>
-          <CardDescription>
-            IdeaSoft API üzerinden çekilen son siparişler ve KDV durumu
-          </CardDescription>
         </div>
-        <Button variant="outline" size="sm" className="gap-1 text-xs rounded-lg">
-          Tümünü Gör
-          <ArrowUpRight className="h-3.5 w-3.5" />
-        </Button>
+        <Link
+          href="/invoice"
+          className="text-xs font-semibold text-[#0066CC] hover:underline flex items-center gap-1 cursor-pointer"
+        >
+          Tümünü Gör <ArrowUpRight className="h-3.5 w-3.5" />
+        </Link>
       </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
-            <thead className="uppercase bg-gray-50 text-gray-500 rounded-lg">
+      <CardContent className="pt-4 overflow-x-auto">
+        <table className="w-full text-xs text-left">
+          <thead className="uppercase text-gray-500 bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="p-3 font-semibold">Sipariş No</th>
+              <th className="p-3 font-semibold">Müşteri</th>
+              <th className="p-3 font-semibold">TCKN</th>
+              <th className="p-3 font-semibold text-right">Tutar</th>
+              <th className="p-3 font-semibold text-center">Durum</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {displayOrders.length === 0 ? (
               <tr>
-                <th className="px-4 py-3 font-semibold rounded-l-lg">Sipariş Kodu</th>
-                <th className="px-4 py-3 font-semibold">Müşteri</th>
-                <th className="px-4 py-3 font-semibold">Tutar</th>
-                <th className="px-4 py-3 font-semibold">KDV</th>
-                <th className="px-4 py-3 font-semibold">Durum</th>
-                <th className="px-4 py-3 font-semibold text-right rounded-r-lg">Zaman</th>
+                <td colSpan={5} className="p-6 text-center text-gray-400">
+                  Henüz sipariş bulunmuyor.
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {sampleOrders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="hover:bg-gray-100 transition-colors cursor-pointer font-medium"
-                >
-                  <td className="px-4 py-3.5 font-mono font-bold text-[#0066CC]">
-                    {order.id}
+            ) : (
+              displayOrders.map((order) => (
+                <tr key={order.id} className="hover:bg-gray-50 transition-colors cursor-pointer">
+                  <td className="p-3 font-mono font-bold text-gray-900">
+                    {order.orderNumber}
                   </td>
-                  <td className="px-4 py-3.5 text-gray-900 font-semibold">
-                    {order.customer}
+                  <td className="p-3 font-medium text-gray-800">
+                    {order.customerName}
                   </td>
-                  <td className="px-4 py-3.5 font-mono text-gray-800">
-                    {order.amount}
+                  <td className="p-3 font-mono text-gray-500">
+                    {order.tckn || "11111111111"}
                   </td>
-                  <td className="px-4 py-3.5 text-gray-500">
-                    {order.vat}
+                  <td className="p-3 text-right font-mono font-bold text-gray-900">
+                    ₺{order.totalAmount.toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="px-4 py-3.5">
-                    <Badge variant={order.badgeVariant} className="text-[11px]">
-                      {order.badgeVariant === "success" ? (
-                        <CheckCircle className="h-3 w-3 mr-1 text-emerald-600" />
-                      ) : (
-                        <Clock className="h-3 w-3 mr-1 text-amber-600" />
-                      )}
-                      {order.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3.5 text-right text-gray-400">
-                    {order.time}
+                  <td className="p-3 text-center">
+                    {order.status === "BALANCED" ? (
+                      <Badge variant="success" className="text-[10px]">
+                        Faturalandırıldı
+                      </Badge>
+                    ) : (
+                      <Badge variant="warning" className="text-[10px]">
+                        Fatura Bekliyor
+                      </Badge>
+                    )}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
       </CardContent>
     </Card>
   );

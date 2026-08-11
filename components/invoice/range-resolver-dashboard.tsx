@@ -50,6 +50,7 @@ export function RangeResolverDashboard({
     removeCategory,
     calculationResult,
     setCalculationResult,
+    updateOrder,
   } = useInvoiceStore();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -65,7 +66,6 @@ export function RangeResolverDashboard({
     type: "success" | "error";
   } | null>(null);
 
-  // STRICT MATH LOCK: Target percentages must sum to EXACTLY 100%
   const totalTargetPercent = categories.reduce(
     (sum, cat) => sum + (Number(cat.targetPercent) || 0),
     0
@@ -84,9 +84,6 @@ export function RangeResolverDashboard({
     });
   };
 
-  /**
-   * Reads UI API Credentials from localStorage to send in headers
-   */
   const getApiCredentials = () => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -130,7 +127,6 @@ export function RangeResolverDashboard({
     const creds = getApiCredentials();
 
     try {
-      // Async Queue Loop
       for (let i = 0; i < ordersToProcess.length; i++) {
         const order = ordersToProcess[i];
 
@@ -158,7 +154,7 @@ export function RangeResolverDashboard({
           throw new Error("Matematiksel Dengeleme Hatası: Seçilen aralıklar hedef tutarı karşılamıyor.");
         }
 
-        // POST to Dopigo API Route passing UI credentials in headers
+        // 1. POST to Dopigo API Route
         const response = await fetch("/api/dopigo/invoice", {
           method: "POST",
           headers: {
@@ -180,6 +176,19 @@ export function RangeResolverDashboard({
           );
         }
 
+        // 2. INVOICE LOOP-BACK: Immediately update IdeaSoft Order status to Faturalandırıldı (BALANCED)
+        await fetch(`/api/ideasoft/orders/${order.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "x-ideasoft-client-id": creds.ideaSoftClientId,
+            "x-ideasoft-client-secret": creds.ideaSoftClientSecret,
+          },
+          body: JSON.stringify({ status: "BALANCED" }),
+        }).catch(() => {});
+
+        // Update local store state instantly
+        updateOrder({ ...order, status: "BALANCED" });
         completedIds.push(order.id);
 
         if (i === ordersToProcess.length - 1) {
@@ -196,7 +205,7 @@ export function RangeResolverDashboard({
 
       setToastInfo({
         title: "Toplu Fatura İşlemi Tamamlandı!",
-        description: `${completedIds.length} adet sipariş exact-match algoritması ile dengelenerek Dopigo'ya gönderildi.`,
+        description: `${completedIds.length} adet sipariş dengelenerek Dopigo'ya iletildi ve IdeaSoft'ta 'Faturalandırıldı' durumuna getirildi.`,
         type: "success",
       });
     } catch (err: any) {

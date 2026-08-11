@@ -12,10 +12,10 @@ import {
   Pencil,
   Check,
   X,
+  ChevronDown,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useInvoiceStore } from "@/lib/store/useInvoiceStore";
 
 export interface OrderItem {
   id: string;
@@ -24,7 +24,7 @@ export interface OrderItem {
   tckn: string;
   totalAmount: number;
   date: string;
-  status: "PENDING" | "BALANCED";
+  status: "PENDING" | "BALANCED" | "NEW" | "PROCESSING" | "SHIPPED";
 }
 
 interface MasterOrderListProps {
@@ -48,6 +48,7 @@ export function MasterOrderList({
 }: MasterOrderListProps) {
   const [filterDefaultTcknOnly, setFilterDefaultTcknOnly] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -68,7 +69,14 @@ export function MasterOrderList({
       order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customerName.toLowerCase().includes(searchQuery.toLowerCase());
 
-    return matchesTcknRule && matchesSearch;
+    const matchesStatus =
+      statusFilter === "ALL"
+        ? true
+        : statusFilter === "PENDING"
+        ? order.status === "PENDING" || order.status === "NEW" || order.status === "PROCESSING"
+        : order.status === statusFilter;
+
+    return matchesTcknRule && matchesSearch && matchesStatus;
   });
 
   const excludedCount = orders.length - filteredOrders.length;
@@ -124,7 +132,7 @@ export function MasterOrderList({
           <div className="flex items-center gap-2">
             <Filter className="h-3.5 w-3.5 text-[#0066CC]" />
             <span className="font-semibold text-gray-700">
-              Filtre: Boş veya Varsayılan TCKN (11111111111)
+              Filtre: Boş veya Varsayılan TCKN
             </span>
           </div>
           <button
@@ -135,8 +143,30 @@ export function MasterOrderList({
                 : "bg-amber-50 text-amber-700 border border-amber-200"
             }`}
           >
-            {filterDefaultTcknOnly ? "Aktif (Süzülüyor)" : "Tümü Gösteriliyor"}
+            {filterDefaultTcknOnly ? "Süzülüyor (11111111111)" : "Tümü"}
           </button>
+        </div>
+
+        {/* PROMINENT E-COMMERCE STATUS SELECT DROPDOWN */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Sipariş Durumu:
+          </span>
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="appearance-none bg-white border border-gray-300 hover:border-gray-400 font-semibold text-xs text-gray-800 py-1.5 pl-3 pr-8 rounded-xl shadow-xs cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
+            >
+              <option value="ALL">Tüm Siparişler</option>
+              <option value="NEW">Yeni Siparişler</option>
+              <option value="PROCESSING">Hazırlanıyor</option>
+              <option value="PENDING">Bekliyor / İşlenecek</option>
+              <option value="SHIPPED">Kargolandı</option>
+              <option value="BALANCED">Faturalandırıldı</option>
+            </select>
+            <ChevronDown className="h-3.5 w-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
         </div>
 
         {excludedCount > 0 && filterDefaultTcknOnly && (
@@ -147,7 +177,7 @@ export function MasterOrderList({
         )}
 
         {/* Search & Batch Select Header */}
-        <div className="flex items-center justify-between gap-2 pt-1">
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100">
           <button
             onClick={handleSelectAll}
             className="flex items-center gap-2 text-xs font-semibold text-gray-700 hover:text-[#0066CC] transition-colors cursor-pointer"
@@ -177,7 +207,7 @@ export function MasterOrderList({
         {filteredOrders.length === 0 ? (
           <div className="text-center py-12 space-y-2 text-gray-400">
             <AlertCircle className="h-8 w-8 mx-auto opacity-50" />
-            <p className="text-xs font-semibold">İşlenecek varsayılan sipariş bulunamadı.</p>
+            <p className="text-xs font-semibold">İşlenecek sipariş bulunamadı.</p>
           </div>
         ) : (
           filteredOrders.map((order) => {
@@ -218,7 +248,7 @@ export function MasterOrderList({
                         </span>
                         {order.status === "BALANCED" && (
                           <Badge variant="success" className="text-[10px] py-0 px-1.5">
-                            Dengelendi
+                            Faturalandırıldı
                           </Badge>
                         )}
                       </div>
