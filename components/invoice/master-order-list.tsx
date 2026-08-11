@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useInvoiceStore } from "@/lib/store/useInvoiceStore";
 
 export interface OrderItem {
   id: string;
@@ -48,17 +49,12 @@ export function MasterOrderList({
   const [filterDefaultTcknOnly, setFilterDefaultTcknOnly] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Editing state for inline order edits
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editTckn, setEditTckn] = useState("");
 
-  /**
-   * Requirement 2: TCKN Filter Critical Bug Fix
-   * Classifies an order as a "Target for Exact-Match" IF TCKN is "11111111111", "", null, undefined, or empty spaces.
-   */
   const isDefaultOrBlankTckn = (tckn?: string | null): boolean => {
-    if (!tckn) return true; // Handles null, undefined, empty string
+    if (!tckn) return true;
     const trimmed = tckn.trim();
     return trimmed === "" || trimmed === "11111111111";
   };
@@ -246,13 +242,13 @@ export function MasterOrderList({
                           />
                           <button
                             onClick={(e) => saveInlineEdit(e, order)}
-                            className="p-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                            className="p-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
                           >
                             <Check className="h-3 w-3" />
                           </button>
                           <button
                             onClick={cancelInlineEdit}
-                            className="p-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            className="p-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer"
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -264,7 +260,7 @@ export function MasterOrderList({
                           </p>
                           <button
                             onClick={(e) => startInlineEdit(e, order)}
-                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-[#0066CC] p-0.5 transition-opacity"
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-[#0066CC] p-0.5 transition-opacity cursor-pointer"
                             title="Müşteri Bilgilerini Düzenle"
                           >
                             <Pencil className="h-3 w-3" />

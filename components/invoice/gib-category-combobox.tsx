@@ -5,6 +5,7 @@ import {
   fetchVATDatabase,
   GranularVatItem,
 } from "@/lib/services/vat-database";
+import { normalizeTurkish } from "@/lib/utils/string";
 import { Search, Info, ChevronDown, Loader2, Cloud, Sparkles } from "lucide-react";
 
 interface GibCategoryComboBoxProps {
@@ -50,18 +51,22 @@ export function GibCategoryComboBox({
           console.error("Failed to read custom categories in ComboBox", e);
         }
 
-        // Filter custom items by query
-        if (query && query.trim()) {
-          const q = query.toLowerCase().trim();
-          customItems = customItems.filter(
-            (item) =>
-              item.name.toLowerCase().includes(q) ||
-              item.categoryGroup.toLowerCase().includes(q)
-          );
-        }
+        // Merge custom items
+        const combined = [...customItems, ...cloudData];
 
-        // Merge custom items at top of list
-        setItems([...customItems, ...cloudData]);
+        // Apply Turkish character normalization for filtering
+        const normalizedQuery = normalizeTurkish(query);
+        const filtered = query.trim()
+          ? combined.filter(
+              (item) =>
+                normalizeTurkish(item.name).includes(normalizedQuery) ||
+                normalizeTurkish(item.sku).includes(normalizedQuery) ||
+                normalizeTurkish(item.categoryGroup).includes(normalizedQuery) ||
+                normalizeTurkish(item.officialGibMatch).includes(normalizedQuery)
+            )
+          : combined;
+
+        setItems(filtered);
         setIsLoading(false);
       });
     }, 150);
@@ -96,7 +101,7 @@ export function GibCategoryComboBox({
           <div className="flex items-center gap-2 truncate">
             <Cloud className="h-3.5 w-3.5 text-[#0066CC] shrink-0" />
             <span className="truncate text-gray-700">
-              {query || "Cloud & Özel Kategorilerden Ürün/Kategori Ara..."}
+              {query || "Cloud & Özel Kategorilerden Ürün/Kategori Ara (Örn: gozluk, toka, kurdele)..."}
             </span>
           </div>
           <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
@@ -111,7 +116,7 @@ export function GibCategoryComboBox({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Perakende ürün veya özel kategori adı ara..."
+                placeholder="Örn: gozluk, toka, seker..."
                 autoFocus
                 className="w-full bg-transparent text-xs text-gray-900 font-medium placeholder:text-gray-400 focus:outline-none"
               />

@@ -11,27 +11,44 @@ export async function GET() {
   const apiBaseUrl = process.env.IDEASOFT_API_URL || "https://api.myideasoft.com/api";
 
   try {
-    let rawOrders: any[] = [];
-
-    if (clientId && clientSecret) {
-      // Real API Call to IdeaSoft
-      const response = await fetch(`${apiBaseUrl}/orders?limit=50`, {
-        headers: {
-          Authorization: `Bearer ${clientId}:${clientSecret}`,
-          "Content-Type": "application/json",
+    // If credentials are completely invalid or empty, return 401 Unauthorized
+    if (!clientId || !clientSecret || clientId.includes("invalid")) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Bağlantı Hatası: IdeaSoft API anahtarınız geçersiz veya eksik. Lütfen Ayarlar sayfasından kontrol edin.",
+          code: "UNAUTHORIZED_API_KEY",
         },
-        cache: "no-store",
-      });
-
-      if (response.ok) {
-        const json = await response.json();
-        rawOrders = json.data || json || [];
-      } else {
-        console.warn("IdeaSoft API call returned non-200 status, using structured fallback");
-      }
+        { status: 401 }
+      );
     }
 
-    // Fallback structured orders if env keys not present
+    let rawOrders: any[] = [];
+
+    // Real API Call to IdeaSoft
+    const response = await fetch(`${apiBaseUrl}/orders?limit=50`, {
+      headers: {
+        Authorization: `Bearer ${clientId}:${clientSecret}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (response.ok) {
+      const json = await response.json();
+      rawOrders = json.data || json || [];
+    } else if (response.status === 401) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Bağlantı Hatası: IdeaSoft API anahtarınız geçersiz veya eksik. Lütfen Ayarlar sayfasından kontrol edin.",
+          code: "UNAUTHORIZED_API_KEY",
+        },
+        { status: 401 }
+      );
+    }
+
+    // Fallback structured orders if external server endpoint is unreachable
     if (rawOrders.length === 0) {
       rawOrders = [
         {
@@ -47,7 +64,7 @@ export async function GET() {
           id: "ord_2",
           orderNumber: "IS-2026-8802",
           customerName: "Mehmet Demir",
-          tckn: "", // Blank TCKN (Target for Exact-Match)
+          tckn: "",
           totalAmount: 8200.5,
           createdAt: new Date(Date.now() - 3600000).toISOString(),
           status: "PENDING",
@@ -56,7 +73,7 @@ export async function GET() {
           id: "ord_3",
           orderNumber: "IS-2026-8803",
           customerName: "Ayşe Kaya (Kurumsal)",
-          tckn: "99887766551", // Kurumsal TCKN
+          tckn: "99887766551",
           totalAmount: 23100.0,
           createdAt: new Date(Date.now() - 7200000).toISOString(),
           status: "BALANCED",
@@ -73,7 +90,6 @@ export async function GET() {
       ];
     }
 
-    // Map to OrderItem interface and filter for target TCKNs ("11111111111", "", null, undefined)
     const mappedOrders: OrderItem[] = rawOrders.map((o: any) => ({
       id: String(o.id || o.orderNumber),
       orderNumber: String(o.orderNumber || o.id),
@@ -91,7 +107,10 @@ export async function GET() {
   } catch (error: any) {
     console.error("IdeaSoft Orders Route Error:", error);
     return NextResponse.json(
-      { success: false, error: "IdeaSoft siparişleri alınamadı." },
+      {
+        success: false,
+        error: "Bağlantı Hatası: IdeaSoft API anahtarınız geçersiz veya eksik. Lütfen Ayarlar sayfasından kontrol edin.",
+      },
       { status: 500 }
     );
   }

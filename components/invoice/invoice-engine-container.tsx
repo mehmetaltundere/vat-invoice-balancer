@@ -1,69 +1,69 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { MasterOrderList, OrderItem } from "./master-order-list";
+import React, { useEffect, useState } from "react";
+import { MasterOrderList } from "./master-order-list";
 import { RangeResolverDashboard } from "./range-resolver-dashboard";
+import { useInvoiceStore } from "@/lib/store/useInvoiceStore";
+import { Toast } from "@/components/ui/toast";
 
 export function InvoiceEngineContainer() {
-  const [orders, setOrders] = useState<OrderItem[]>([]);
-  const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
-  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+  const {
+    orders,
+    setOrders,
+    selectedOrder,
+    setSelectedOrder,
+    selectedOrderIds,
+    setSelectedOrderIds,
+    toggleBatchSelect,
+    updateOrder,
+  } = useInvoiceStore();
 
-  // Fetch orders from real server-side API route (/api/ideasoft/orders)
+  const [apiErrorToast, setApiErrorToast] = useState<string | null>(null);
+
+  // Fetch orders from server-side API route (/api/ideasoft/orders)
   useEffect(() => {
     let isMounted = true;
-    setIsLoadingOrders(true);
 
-    fetch("/api/ideasoft/orders")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!isMounted) return;
-        if (data.success && Array.isArray(data.orders)) {
-          setOrders(data.orders);
-          if (data.orders.length > 0) {
-            setSelectedOrder(data.orders[0]);
-            setSelectedOrderIds([data.orders[0].id]);
+    if (orders.length === 0) {
+      fetch("/api/ideasoft/orders")
+        .then(async (res) => {
+          if (res.status === 401) {
+            const errJson = await res.json();
+            throw new Error(
+              errJson.error ||
+                "Bağlantı Hatası: IdeaSoft API anahtarınız geçersiz veya eksik. Lütfen Ayarlar sayfasından kontrol edin."
+            );
           }
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to fetch IdeaSoft orders", err);
-      })
-      .finally(() => {
-        if (isMounted) setIsLoadingOrders(false);
-      });
-  }, []);
-
-  const handleToggleBatchSelect = (orderId: string) => {
-    if (selectedOrderIds.includes(orderId)) {
-      setSelectedOrderIds(selectedOrderIds.filter((id) => id !== orderId));
-    } else {
-      setSelectedOrderIds([...selectedOrderIds, orderId]);
+          return res.json();
+        })
+        .then((data) => {
+          if (!isMounted) return;
+          if (data.success && Array.isArray(data.orders)) {
+            setOrders(data.orders);
+          } else if (data.error) {
+            setApiErrorToast(data.error);
+          }
+        })
+        .catch((err: any) => {
+          if (!isMounted) return;
+          setApiErrorToast(
+            err.message ||
+              "Bağlantı Hatası: IdeaSoft API anahtarınız geçersiz veya eksik. Lütfen Ayarlar sayfasından kontrol edin."
+          );
+        });
     }
-  };
+  }, [orders.length, setOrders]);
 
   const handleSelectAllBatch = (orderIds: string[]) => {
     setSelectedOrderIds(orderIds);
   };
 
-  const handleUpdateOrder = (updatedOrder: OrderItem) => {
-    setOrders(
-      orders.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
-    );
-    if (selectedOrder?.id === updatedOrder.id) {
-      setSelectedOrder(updatedOrder);
-    }
-  };
-
   const handleBatchCompleted = (completedIds: string[]) => {
-    // Mark completed orders as BALANCED
     setOrders(
       orders.map((o) =>
         completedIds.includes(o.id) ? { ...o, status: "BALANCED" } : o
       )
     );
-    // Uncheck completed orders
     setSelectedOrderIds(
       selectedOrderIds.filter((id) => !completedIds.includes(id))
     );
@@ -82,9 +82,9 @@ export function InvoiceEngineContainer() {
           selectedOrderId={selectedOrder?.id || null}
           onSelectOrder={(order) => setSelectedOrder(order)}
           selectedOrderIds={selectedOrderIds}
-          onToggleBatchSelect={handleToggleBatchSelect}
+          onToggleBatchSelect={toggleBatchSelect}
           onSelectAllBatch={handleSelectAllBatch}
-          onUpdateOrder={handleUpdateOrder}
+          onUpdateOrder={updateOrder}
         />
       </div>
 
@@ -96,6 +96,15 @@ export function InvoiceEngineContainer() {
           onBatchCompleted={handleBatchCompleted}
         />
       </div>
+
+      {apiErrorToast && (
+        <Toast
+          title="API Bağlantı Uyarısı"
+          description={apiErrorToast}
+          type="error"
+          onClose={() => setApiErrorToast(null)}
+        />
+      )}
     </div>
   );
 }

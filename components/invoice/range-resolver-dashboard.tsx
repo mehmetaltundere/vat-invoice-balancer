@@ -26,15 +26,7 @@ import { ExactMatchResult, executeExactMatchResolver } from "@/services/balancer
 import { Toast } from "@/components/ui/toast";
 import { GibCategoryComboBox } from "./gib-category-combobox";
 import { GranularVatItem } from "@/lib/services/vat-database";
-
-interface CategoryInputRow {
-  id: string;
-  name: string;
-  minPrice: number;
-  maxPrice: number;
-  targetPercent: number;
-  vatRate: number;
-}
+import { useInvoiceStore } from "@/lib/store/useInvoiceStore";
 
 interface RangeResolverDashboardProps {
   selectedOrder: OrderItem | null;
@@ -47,32 +39,15 @@ export function RangeResolverDashboard({
   batchOrders = [],
   onBatchCompleted,
 }: RangeResolverDashboardProps) {
-  const [categories, setCategories] = useState<CategoryInputRow[]>([
-    {
-      id: "cat_1",
-      name: "Saten Kurdele (Tekstil Malzemesi)",
-      minPrice: 50,
-      maxPrice: 300,
-      targetPercent: 50,
-      vatRate: 10,
-    },
-    {
-      id: "cat_2",
-      name: "Güneş Gözlüğü (Aksesuar)",
-      minPrice: 100,
-      maxPrice: 600,
-      targetPercent: 30,
-      vatRate: 20,
-    },
-    {
-      id: "cat_3",
-      name: "Plastik Saç Tokası & Mandallı Klips",
-      minPrice: 20,
-      maxPrice: 150,
-      targetPercent: 20,
-      vatRate: 10,
-    },
-  ]);
+  // Connect to Zustand Global Store for persistent state
+  const {
+    categories,
+    updateCategory,
+    addCategory,
+    removeCategory,
+    calculationResult,
+    setCalculationResult,
+  } = useInvoiceStore();
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{
@@ -81,8 +56,6 @@ export function RangeResolverDashboard({
     currentOrder: string;
   } | null>(null);
 
-  const [calculationResult, setCalculationResult] =
-    useState<ExactMatchResult | null>(null);
   const [toastInfo, setToastInfo] = useState<{
     title: string;
     description: string;
@@ -97,43 +70,16 @@ export function RangeResolverDashboard({
   const isValidPercentSum = Math.abs(totalTargetPercent - 100) < 0.01;
 
   const handleAddGranularItem = (item: GranularVatItem) => {
-    setCategories([
-      ...categories,
-      {
-        id: `cat_${Date.now()}`,
-        name: item.name,
-        minPrice: 50,
-        maxPrice: 500,
-        targetPercent: 0,
-        vatRate: item.vatRate,
-      },
-    ]);
+    addCategory({
+      id: `cat_${Date.now()}`,
+      name: item.name,
+      minPrice: 50,
+      maxPrice: 500,
+      targetPercent: 0,
+      vatRate: item.vatRate,
+    });
   };
 
-  const handleRemoveCategory = (id: string) => {
-    if (categories.length <= 1) return;
-    setCategories(categories.filter((c) => c.id !== id));
-  };
-
-  const handleCategoryChange = (
-    id: string,
-    field: keyof CategoryInputRow,
-    value: any
-  ) => {
-    setCategories(
-      categories.map((cat) => {
-        if (cat.id === id) {
-          return { ...cat, [field]: value };
-        }
-        return cat;
-      })
-    );
-  };
-
-  /**
-   * BATCH PROCESSING & QUEUE ENGINE (for...of loop)
-   * Processes multiple selected orders sequentially to prevent rate-limiting
-   */
   const handleRunBatchQueue = async () => {
     const ordersToProcess =
       batchOrders.length > 0 ? batchOrders : selectedOrder ? [selectedOrder] : [];
@@ -149,8 +95,8 @@ export function RangeResolverDashboard({
 
     if (!isValidPercentSum) {
       setToastInfo({
-        title: "Matematiksel Kural İhlali",
-        description: `Kategori hedef yüzdeleri toplamı kesinlikle %100 olmalıdır. (Şu anki: %${totalTargetPercent})`,
+        title: "Matematiksel Dengeleme Hatası",
+        description: "Seçilen aralıklar hedef tutarı karşılamıyor. (Toplam hedef %100 olmalıdır)",
         type: "error",
       });
       return;
@@ -166,28 +112,32 @@ export function RangeResolverDashboard({
       for (let i = 0; i < ordersToProcess.length; i++) {
         const order = ordersToProcess[i];
 
-        // 1. Update UI progress sequentially
         setBatchProgress({
           current: i + 1,
           total: ordersToProcess.length,
           currentOrder: order.orderNumber,
         });
 
-        // 2. Run Exact-Match math locally
-        const matchResult = executeExactMatchResolver(
-          order.orderNumber,
-          order.totalAmount,
-          categories.map((c) => ({
-            id: c.id,
-            name: c.name,
-            minPrice: Number(c.minPrice),
-            maxPrice: Number(c.maxPrice),
-            targetPercent: Number(c.targetPercent),
-            vatRate: Number(c.vatRate),
-          }))
-        );
+        // Try executing local math resolver with graceful error catch
+        let matchResult: ExactMatchResult;
+        try {
+          matchResult = executeExactMatchResolver(
+            order.orderNumber,
+            order.totalAmount,
+            categories.map((c) => ({
+              id: c.id,
+              name: c.name,
+              minPrice: Number(c.minPrice),
+              maxPrice: Number(c.maxPrice),
+              targetPercent: Number(c.targetPercent),
+              vatRate: Number(c.vatRate),
+            }))
+          );
+        } catch (mathErr) {
+          throw new Error("Matematiksel Dengeleme Hatası: Seçilen aralıklar hedef tutarı karşılamıyor.");
+        }
 
-        // 3. POST to real Dopigo API Route (/api/dopigo/invoice)
+        // POST to Dopigo API Route
         const response = await fetch("/api/dopigo/invoice", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -198,10 +148,15 @@ export function RangeResolverDashboard({
           }),
         });
 
-        // 4. AWAIT success response before moving to next order
+        if (response.status === 401) {
+          throw new Error("Bağlantı Hatası: IdeaSoft veya Dopigo API anahtarınız geçersiz veya eksik. Lütfen Ayarlar sayfasından kontrol edin.");
+        }
+
         const resJson = await response.json();
         if (resJson.success) {
           completedIds.push(order.id);
+        } else {
+          throw new Error(resJson.error || "Fatura gönderimi başarısız.");
         }
 
         if (i === ordersToProcess.length - 1) {
@@ -221,12 +176,12 @@ export function RangeResolverDashboard({
         description: `${completedIds.length} adet sipariş exact-match algoritması ile dengelenerek Dopigo'ya gönderildi.`,
         type: "success",
       });
-    } catch (err) {
+    } catch (err: any) {
       setIsProcessing(false);
       setBatchProgress(null);
       setToastInfo({
-        title: "Kuyruk Hatası",
-        description: "Toplu işlem sırasında bir hata oluştu.",
+        title: "İşlem Hatası",
+        description: err.message || "Matematiksel Dengeleme Hatası: Seçilen aralıklar hedef tutarı karşılamıyor.",
         type: "error",
       });
     }
@@ -362,7 +317,7 @@ export function RangeResolverDashboard({
                     type="text"
                     value={cat.name}
                     onChange={(e) =>
-                      handleCategoryChange(cat.id, "name", e.target.value)
+                      updateCategory(cat.id, "name", e.target.value)
                     }
                     className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-semibold text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
                   />
@@ -377,11 +332,7 @@ export function RangeResolverDashboard({
                     type="number"
                     value={cat.minPrice}
                     onChange={(e) =>
-                      handleCategoryChange(
-                        cat.id,
-                        "minPrice",
-                        Number(e.target.value)
-                      )
+                      updateCategory(cat.id, "minPrice", Number(e.target.value))
                     }
                     className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-mono text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
                   />
@@ -396,11 +347,7 @@ export function RangeResolverDashboard({
                     type="number"
                     value={cat.maxPrice}
                     onChange={(e) =>
-                      handleCategoryChange(
-                        cat.id,
-                        "maxPrice",
-                        Number(e.target.value)
-                      )
+                      updateCategory(cat.id, "maxPrice", Number(e.target.value))
                     }
                     className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-mono text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
                   />
@@ -415,7 +362,7 @@ export function RangeResolverDashboard({
                     type="number"
                     value={cat.targetPercent}
                     onChange={(e) =>
-                      handleCategoryChange(
+                      updateCategory(
                         cat.id,
                         "targetPercent",
                         Number(e.target.value)
@@ -433,11 +380,7 @@ export function RangeResolverDashboard({
                   <select
                     value={cat.vatRate}
                     onChange={(e) =>
-                      handleCategoryChange(
-                        cat.id,
-                        "vatRate",
-                        Number(e.target.value)
-                      )
+                      updateCategory(cat.id, "vatRate", Number(e.target.value))
                     }
                     className="w-full px-2 py-2 rounded-lg bg-white border border-gray-200 text-xs font-semibold text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
                   >
@@ -450,7 +393,7 @@ export function RangeResolverDashboard({
                 {/* Remove Category */}
                 <div className="sm:col-span-1 flex justify-end">
                   <button
-                    onClick={() => handleRemoveCategory(cat.id)}
+                    onClick={() => removeCategory(cat.id)}
                     disabled={categories.length <= 1}
                     className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 transition-colors cursor-pointer"
                   >
