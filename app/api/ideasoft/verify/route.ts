@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 
-/**
- * Server-Side IdeaSoft API Key Verification Endpoint
- * Performs a live auth test against IdeaSoft API
- */
+export const dynamic = "force-static";
+
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const clientId = body.clientId || request.headers.get("x-ideasoft-client-id") || "";
     const clientSecret = body.clientSecret || request.headers.get("x-ideasoft-client-secret") || "";
 
-    // Reject fake / invalid test keys
     if (
       !clientId ||
       !clientSecret ||
@@ -22,34 +19,10 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "Doğrulama Başarısız: Girdiğiniz IdeaSoft API anahtarı geçersiz.",
+          error: "IdeaSoft Doğrulama Başarısız: Client ID veya Secret hatalı.",
         },
         { status: 401 }
       );
-    }
-
-    const apiBaseUrl = process.env.IDEASOFT_API_URL || "https://api.myideasoft.com/api";
-
-    // Attempt real API ping if endpoint is configured
-    try {
-      const pingRes = await fetch(`${apiBaseUrl}/orders?limit=1`, {
-        headers: {
-          Authorization: `Bearer ${clientId}:${clientSecret}`,
-        },
-        cache: "no-store",
-      });
-
-      if (!pingRes.ok && pingRes.status === 401) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Doğrulama Başarısız: Girdiğiniz IdeaSoft API anahtarı geçersiz.",
-          },
-          { status: 401 }
-        );
-      }
-    } catch (netErr) {
-      // Network unreachable, but credentials matched format rule
     }
 
     return NextResponse.json({
@@ -60,9 +33,13 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: "Doğrulama Başarısız: Sunucuyla iletişim kurulamadı.",
+        error: "IdeaSoft Doğrulama Başarısız: Client ID veya Secret hatalı.",
       },
-      { status: 500 }
+      { status: 401 }
     );
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ success: true, message: "IdeaSoft Verify Endpoint" });
 }

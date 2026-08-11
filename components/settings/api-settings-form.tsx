@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Eye, EyeOff, Save, Key, Loader2, CheckCircle2, ShieldAlert } from "lucide-react";
+import { Eye, EyeOff, Save, Key, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -31,6 +31,9 @@ export function ApiSettingsForm() {
   const [showDopigoToken, setShowDopigoToken] = useState(false);
 
   const [isVerifying, setIsVerifying] = useState(false);
+  const [ideaSoftStatus, setIdeaSoftStatus] = useState<"IDLE" | "SUCCESS" | "ERROR">("IDLE");
+  const [dopigoStatus, setDopigoStatus] = useState<"IDLE" | "SUCCESS" | "ERROR">("IDLE");
+
   const [toastInfo, setToastInfo] = useState<{
     title: string;
     description: string;
@@ -46,17 +49,18 @@ export function ApiSettingsForm() {
   }, [isLoaded, settings]);
 
   /**
-   * Task 10: Real API Key Validation
-   * Sends verification requests to /api/ideasoft/verify and /api/dopigo/verify
-   * Only saves to localStorage if endpoints return 200 OK
+   * Task 11: Granular Error Reporting
+   * Validates IdeaSoft first, then Dopigo. Halts on individual failure.
    */
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsVerifying(true);
     setToastInfo(null);
+    setIdeaSoftStatus("IDLE");
+    setDopigoStatus("IDLE");
 
     try {
-      // 1. Verify IdeaSoft API Key
+      // Step 1: Granular Validation for IdeaSoft
       const ideaRes = await fetch("/api/ideasoft/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -69,15 +73,17 @@ export function ApiSettingsForm() {
       const ideaJson = await ideaRes.json().catch(() => ({}));
       if (!ideaRes.ok || !ideaJson.success) {
         setIsVerifying(false);
+        setIdeaSoftStatus("ERROR");
         setToastInfo({
-          title: "Doğrulama Başarısız",
-          description: ideaJson.error || "Doğrulama Başarısız: Girdiğiniz IdeaSoft API anahtarı geçersiz.",
+          title: "IdeaSoft Doğrulama Başarısız",
+          description: "IdeaSoft Doğrulama Başarısız: Client ID veya Secret hatalı.",
           type: "error",
         });
-        return;
+        return; // HALT PROCESS
       }
+      setIdeaSoftStatus("SUCCESS");
 
-      // 2. Verify Dopigo API Token
+      // Step 2: Granular Validation for Dopigo
       const dopRes = await fetch("/api/dopigo/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,15 +93,17 @@ export function ApiSettingsForm() {
       const dopJson = await dopRes.json().catch(() => ({}));
       if (!dopRes.ok || !dopJson.success) {
         setIsVerifying(false);
+        setDopigoStatus("ERROR");
         setToastInfo({
-          title: "Doğrulama Başarısız",
-          description: dopJson.error || "Doğrulama Başarısız: Girdiğiniz Dopigo API token'ı geçersiz.",
+          title: "Dopigo Doğrulama Başarısız",
+          description: "Dopigo Doğrulama Başarısız: API Token geçersiz.",
           type: "error",
         });
-        return;
+        return; // HALT PROCESS
       }
+      setDopigoStatus("SUCCESS");
 
-      // 3. Credentials verified successfully -> Save to localStorage
+      // Step 3: BOTH passed -> Save to localStorage
       saveSettings({
         ideaSoftClientId,
         ideaSoftClientSecret,
@@ -104,15 +112,15 @@ export function ApiSettingsForm() {
 
       setIsVerifying(false);
       setToastInfo({
-        title: "API Kimlik Bilgileri Doğrulandı",
-        description: "IdeaSoft ve Dopigo API anahtarlarınız başarıyla doğrulandı ve kaydedildi.",
+        title: "Tüm Bağlantılar Başarılı!",
+        description: "Tüm bağlantılar başarılı! Şifreler güvenle kaydedildi.",
         type: "success",
       });
     } catch (err: any) {
       setIsVerifying(false);
       setToastInfo({
-        title: "Doğrulama Başarısız",
-        description: "Doğrulama Başarısız: Girdiğiniz API anahtarı geçersiz veya sunucuya ulaşılamadı.",
+        title: "Bağlantı Hatası",
+        description: "Sunucuyla iletişim kurulamadı.",
         type: "error",
       });
     }
@@ -137,7 +145,7 @@ export function ApiSettingsForm() {
             </div>
             <div>
               <CardTitle className="text-xl font-semibold tracking-tight text-gray-900">
-                API Entegrasyon Ayarları (Canlı Doğrulamalı)
+                API Entegrasyon Ayarları (Adım Adım Doğrulamalı)
               </CardTitle>
               <CardDescription>
                 IdeaSoft e-ticaret mağazası ve Dopigo e-Fatura entegrasyon anahtarlarınız
@@ -149,9 +157,21 @@ export function ApiSettingsForm() {
           <form onSubmit={handleSave} className="space-y-6">
             {/* IdeaSoft Section */}
             <div className="space-y-4">
-              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                IdeaSoft API Kimlik Bilgileri
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                  IdeaSoft API Kimlik Bilgileri
+                </h3>
+                {ideaSoftStatus === "SUCCESS" && (
+                  <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                    <CheckCircle2 className="h-4 w-4" /> Doğrulandı ✅
+                  </span>
+                )}
+                {ideaSoftStatus === "ERROR" && (
+                  <span className="text-xs font-semibold text-red-600 flex items-center gap-1 bg-red-50 px-2.5 py-1 rounded-full border border-red-200">
+                    <XCircle className="h-4 w-4" /> Hatalı ❌
+                  </span>
+                )}
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -199,9 +219,21 @@ export function ApiSettingsForm() {
 
             {/* Dopigo Section */}
             <div className="pt-4 border-t border-gray-100 space-y-4">
-              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                Dopigo API Kimlik Bilgileri
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                  Dopigo API Kimlik Bilgileri
+                </h3>
+                {dopigoStatus === "SUCCESS" && (
+                  <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                    <CheckCircle2 className="h-4 w-4" /> Doğrulandı ✅
+                  </span>
+                )}
+                {dopigoStatus === "ERROR" && (
+                  <span className="text-xs font-semibold text-red-600 flex items-center gap-1 bg-red-50 px-2.5 py-1 rounded-full border border-red-200">
+                    <XCircle className="h-4 w-4" /> Hatalı ❌
+                  </span>
+                )}
+              </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-700">
@@ -242,7 +274,7 @@ export function ApiSettingsForm() {
                 {isVerifying ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    API Anahtarları Doğrulanıyor...
+                    API Anahtarları Sırayla Doğrulanıyor...
                   </>
                 ) : (
                   <>

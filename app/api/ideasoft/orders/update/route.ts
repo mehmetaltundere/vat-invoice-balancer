@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
 
-export function generateStaticParams() {
-  return [{ id: "default" }];
-}
+export const dynamic = "force-static";
 
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+/**
+ * Static-Export Friendly IdeaSoft Order Status Update Endpoint
+ */
+export async function POST(request: Request) {
   try {
-    const resolvedParams = await params;
-    const orderId = resolvedParams.id;
+    const body = await request.json().catch(() => ({}));
+    const orderId = body.orderId || body.id || "";
+
     const clientId = request.headers.get("x-ideasoft-client-id") || process.env.IDEASOFT_CLIENT_ID || "";
     const clientSecret = request.headers.get("x-ideasoft-client-secret") || process.env.IDEASOFT_CLIENT_SECRET || "";
     const apiBaseUrl = process.env.IDEASOFT_API_URL || "https://api.myideasoft.com/api";
@@ -45,5 +44,5 @@ export async function PUT(
 }
 
 export async function GET() {
-  return NextResponse.json({ success: true, message: "Order Update Endpoint" });
+  return NextResponse.json({ success: true, message: "IdeaSoft Order Update Endpoint" });
 }
