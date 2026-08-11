@@ -40,10 +40,10 @@ export function DashboardOverview() {
       <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-900 via-[#0066CC] to-blue-800 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <span className="text-xs font-semibold uppercase tracking-wider text-blue-200 flex items-center gap-1.5 mb-1">
-            <Zap className="h-4 w-4 text-amber-400" /> Nexus Middleware Engine v2.0
+            <Zap className="h-4 w-4 text-amber-400" /> EFA Engine v2.0
           </span>
           <h2 className="text-2xl font-bold tracking-tight text-white">
-            KDV Dengeleme & e-Fatura Köprüsü
+            EFA - EXlora Fatura Asistanı
           </h2>
           <p className="text-xs text-blue-100 mt-1 max-w-xl leading-relaxed">
             IdeaSoft e-ticaret siparişlerini KDV matrah sınırlarına göre dengeleyerek otomatik Dopigo e-faturasına dönüştürür.

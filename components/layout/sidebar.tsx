@@ -7,7 +7,6 @@ import {
   Receipt,
   ShieldCheck,
   Zap,
-  ArrowRightLeft,
   Key,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,17 +35,19 @@ export function Sidebar() {
   return (
     <aside className="w-72 shrink-0 border-r border-gray-200 bg-[#F4F4F5] text-gray-900 flex flex-col justify-between shadow-xs">
       <div className="p-6">
-        {/* Brand Logo & Title */}
+        {/* Brand Logo & Title Integration */}
         <div className="flex items-center gap-3 pb-6 border-b border-gray-200/80">
-          <div className="h-10 w-10 rounded-xl bg-[#0066CC] flex items-center justify-center text-white shadow-xs">
-            <ArrowRightLeft className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="font-semibold text-gray-900 tracking-tight text-base leading-tight">
-              Nexus VAT Bridge
+          <img
+            src="/logosembol.png"
+            alt="EFA Sembol"
+            className="h-10 w-10 object-contain shrink-0"
+          />
+          <div className="min-w-0">
+            <h1 className="font-bold text-gray-900 tracking-tight text-sm leading-snug truncate">
+              EFA
             </h1>
-            <p className="text-xs text-gray-500 font-medium">
-              IdeaSoft ↔ Dopigo
+            <p className="text-[11px] text-gray-500 font-semibold truncate">
+              EXlora Fatura Asistanı
             </p>
           </div>
         </div>
@@ -92,7 +93,7 @@ export function Sidebar() {
         <div className="flex items-center gap-2 mb-1.5">
           <Zap className="h-4 w-4 text-amber-500" />
           <span className="text-xs font-semibold text-gray-800">
-            Dengeleme Motoru
+            KDV Asistan Motoru
           </span>
         </div>
         <p className="text-xs text-gray-500 leading-relaxed mb-3 font-medium">
