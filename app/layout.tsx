@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" className={inter.variable}>
-      <body className="bg-[#F5F5F7] text-gray-900 font-sans antialiased min-h-screen flex selection:bg-blue-500 selection:text-white">
+      <body className="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen flex selection:bg-blue-600 selection:text-white">
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <Topbar />
