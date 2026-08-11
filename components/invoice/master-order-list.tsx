@@ -9,6 +9,9 @@ import {
   UserX,
   Search,
   AlertCircle,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +33,7 @@ interface MasterOrderListProps {
   selectedOrderIds: string[];
   onToggleBatchSelect: (orderId: string) => void;
   onSelectAllBatch: (orderIds: string[]) => void;
+  onUpdateOrder: (updatedOrder: OrderItem) => void;
 }
 
 export function MasterOrderList({
@@ -39,20 +43,36 @@ export function MasterOrderList({
   selectedOrderIds,
   onToggleBatchSelect,
   onSelectAllBatch,
+  onUpdateOrder,
 }: MasterOrderListProps) {
   const [filterDefaultTcknOnly, setFilterDefaultTcknOnly] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Editing state for inline order edits
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editTckn, setEditTckn] = useState("");
+
+  /**
+   * Requirement 2: TCKN Filter Critical Bug Fix
+   * Classifies an order as a "Target for Exact-Match" IF TCKN is "11111111111", "", null, undefined, or empty spaces.
+   */
+  const isDefaultOrBlankTckn = (tckn?: string | null): boolean => {
+    if (!tckn) return true; // Handles null, undefined, empty string
+    const trimmed = tckn.trim();
+    return trimmed === "" || trimmed === "11111111111";
+  };
+
   const filteredOrders = orders.filter((order) => {
-    const matchesTckn = filterDefaultTcknOnly
-      ? order.tckn === "11111111111"
+    const matchesTcknRule = filterDefaultTcknOnly
+      ? isDefaultOrBlankTckn(order.tckn)
       : true;
 
     const matchesSearch =
       order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customerName.toLowerCase().includes(searchQuery.toLowerCase());
 
-    return matchesTckn && matchesSearch;
+    return matchesTcknRule && matchesSearch;
   });
 
   const excludedCount = orders.length - filteredOrders.length;
@@ -66,6 +86,28 @@ export function MasterOrderList({
     } else {
       onSelectAllBatch(filteredOrders.map((o) => o.id));
     }
+  };
+
+  const startInlineEdit = (e: React.MouseEvent, order: OrderItem) => {
+    e.stopPropagation();
+    setEditingOrderId(order.id);
+    setEditName(order.customerName);
+    setEditTckn(order.tckn || "11111111111");
+  };
+
+  const saveInlineEdit = (e: React.MouseEvent, order: OrderItem) => {
+    e.stopPropagation();
+    onUpdateOrder({
+      ...order,
+      customerName: editName.trim() || order.customerName,
+      tckn: editTckn.trim() || "11111111111",
+    });
+    setEditingOrderId(null);
+  };
+
+  const cancelInlineEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingOrderId(null);
   };
 
   return (
@@ -86,7 +128,7 @@ export function MasterOrderList({
           <div className="flex items-center gap-2">
             <Filter className="h-3.5 w-3.5 text-[#0066CC]" />
             <span className="font-semibold text-gray-700">
-              Filtre: Yalnızca TCKN: 11111111111
+              Filtre: Boş veya Varsayılan TCKN (11111111111)
             </span>
           </div>
           <button
@@ -104,7 +146,7 @@ export function MasterOrderList({
         {excludedCount > 0 && filterDefaultTcknOnly && (
           <p className="text-[11px] text-amber-700 flex items-center gap-1 font-medium">
             <UserX className="h-3 w-3 shrink-0" />
-            Özel TCKN giren {excludedCount} sipariş otomatik süzüldü.
+            Özel TCKN giren {excludedCount} kurumsal sipariş süzüldü.
           </p>
         )}
 
@@ -119,7 +161,7 @@ export function MasterOrderList({
             ) : (
               <Square className="h-4 w-4 text-gray-400" />
             )}
-            Tümünü Seç ({selectedOrderIds.length})
+            Toplu Seçim ({selectedOrderIds.length})
           </button>
 
           <div className="relative flex-1 max-w-[180px]">
@@ -145,6 +187,7 @@ export function MasterOrderList({
           filteredOrders.map((order) => {
             const isSelectedForDetail = selectedOrderId === order.id;
             const isCheckedBatch = selectedOrderIds.includes(order.id);
+            const isEditing = editingOrderId === order.id;
 
             return (
               <div
@@ -157,7 +200,7 @@ export function MasterOrderList({
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -172,7 +215,7 @@ export function MasterOrderList({
                       )}
                     </button>
 
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs font-bold text-gray-900">
                           {order.orderNumber}
@@ -183,18 +226,60 @@ export function MasterOrderList({
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5 font-medium">
-                        {order.customerName}
-                      </p>
+
+                      {/* Inline Customer Edit Mode */}
+                      {isEditing ? (
+                        <div className="flex items-center gap-1.5 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            placeholder="Müşteri Adı"
+                            className="px-2 py-1 rounded bg-white border border-blue-300 text-xs font-medium text-gray-900 focus:outline-none"
+                          />
+                          <input
+                            type="text"
+                            value={editTckn}
+                            onChange={(e) => setEditTckn(e.target.value)}
+                            placeholder="TCKN"
+                            className="w-24 px-2 py-1 rounded bg-white border border-blue-300 text-xs font-mono text-gray-900 focus:outline-none"
+                          />
+                          <button
+                            onClick={(e) => saveInlineEdit(e, order)}
+                            className="p-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                          >
+                            <Check className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={cancelInlineEdit}
+                            className="p-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <p className="text-xs text-gray-600 font-medium truncate">
+                            {order.customerName}
+                          </p>
+                          <button
+                            onClick={(e) => startInlineEdit(e, order)}
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-[#0066CC] p-0.5 transition-opacity"
+                            title="Müşteri Bilgilerini Düzenle"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <span className="font-mono font-bold text-sm text-gray-900">
                       ₺{order.totalAmount.toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
                     </span>
                     <p className="text-[10px] font-mono text-gray-400 mt-0.5">
-                      TCKN: {order.tckn}
+                      TCKN: {order.tckn || "Boş (11111111111)"}
                     </p>
                   </div>
                 </div>

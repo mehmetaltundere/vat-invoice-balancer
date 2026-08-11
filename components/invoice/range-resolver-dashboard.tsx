@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import {
   Sliders,
-  Plus,
   Trash2,
   Play,
   Loader2,
@@ -25,7 +24,7 @@ import { OrderItem } from "./master-order-list";
 import { ExactMatchResult } from "@/services/balancer";
 import { Toast } from "@/components/ui/toast";
 import { GibCategoryComboBox } from "./gib-category-combobox";
-import { GibVatCategory } from "@/lib/data/gib-categories";
+import { GranularVatItem } from "@/lib/services/vat-database";
 
 interface CategoryInputRow {
   id: string;
@@ -46,27 +45,27 @@ export function RangeResolverDashboard({
   const [categories, setCategories] = useState<CategoryInputRow[]>([
     {
       id: "cat_1",
-      name: "Elektronik Cihazlar, Telefon ve Bilgisayar",
-      minPrice: 100,
-      maxPrice: 800,
-      targetPercent: 50,
-      vatRate: 20,
-    },
-    {
-      id: "cat_2",
-      name: "Tekstil, Konfeksiyon ve Giyim Ürünleri",
+      name: "Saten Kurdele (Tekstil Malzemesi)",
       minPrice: 50,
-      maxPrice: 400,
-      targetPercent: 30,
+      maxPrice: 300,
+      targetPercent: 50,
       vatRate: 10,
     },
     {
+      id: "cat_2",
+      name: "Güneş Gözlüğü (Aksesuar)",
+      minPrice: 100,
+      maxPrice: 600,
+      targetPercent: 30,
+      vatRate: 20,
+    },
+    {
       id: "cat_3",
-      name: "Temel Gıda Maddeleri (Un, Ekmek, Süt)",
-      minPrice: 30,
-      maxPrice: 200,
+      name: "Plastik Saç Tokası & Mandallı Klips",
+      minPrice: 20,
+      maxPrice: 150,
       targetPercent: 20,
-      vatRate: 1,
+      vatRate: 10,
     },
   ]);
 
@@ -85,16 +84,16 @@ export function RangeResolverDashboard({
   );
   const isValidPercentSum = Math.abs(totalTargetPercent - 100) < 0.01;
 
-  const handleAddGibCategory = (gibCategory: GibVatCategory) => {
+  const handleAddGranularItem = (item: GranularVatItem) => {
     setCategories([
       ...categories,
       {
         id: `cat_${Date.now()}`,
-        name: gibCategory.name,
+        name: item.name,
         minPrice: 50,
         maxPrice: 500,
         targetPercent: 0,
-        vatRate: gibCategory.defaultVatRate,
+        vatRate: item.vatRate,
       },
     ]);
   };
@@ -147,7 +146,7 @@ export function RangeResolverDashboard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderId: selectedOrder.orderNumber,
-          customerTckn: selectedOrder.tckn,
+          customerTckn: selectedOrder.tckn || "11111111111",
           totalAmount: selectedOrder.totalAmount,
           categories: categories.map((c) => ({
             id: c.id,
@@ -203,7 +202,7 @@ export function RangeResolverDashboard({
             </h2>
             <p className="text-xs text-gray-400 mt-0.5 font-medium">
               Müşteri: {selectedOrder?.customerName || "—"} | TCKN:{" "}
-              {selectedOrder?.tckn || "—"}
+              {selectedOrder?.tckn || "Varsayılan (11111111111)"}
             </p>
           </div>
 
@@ -250,26 +249,26 @@ export function RangeResolverDashboard({
         </div>
       </Card>
 
-      {/* Dynamic GİB Category ComboBox & Inputs */}
+      {/* Dynamic Retail Item ComboBox & Inputs */}
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
           <div>
             <CardTitle className="text-xl font-semibold tracking-tight text-gray-900 flex items-center gap-2">
               <Sliders className="h-4 w-4 text-[#0066CC]" />
-              Resmi GİB KDV Kategorileri & Toleranslar
+              Cloud KDV Veritabanı Perakende Kalemleri
             </CardTitle>
             <CardDescription>
-              Aşağıdan resmi GİB kategorisi arayıp ekleyin ve min-max aralıklarını belirleyin
+              Aşağıdaki Cloud arama barından spesifik perakende ürünü (örn: Kurdele, Toka, Koli Bandı) ekleyin
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* GİB Search ComboBox */}
+          {/* Cloud Search ComboBox */}
           <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200">
             <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Resmi GİB Kategorisi Ekle
+              Cloud KDV Veritabanından Perakende Ürünü Ekle
             </p>
-            <GibCategoryComboBox onSelectCategory={handleAddGibCategory} />
+            <GibCategoryComboBox onSelectCategory={handleAddGranularItem} />
           </div>
 
           {/* Category Input Rows */}
@@ -282,7 +281,7 @@ export function RangeResolverDashboard({
                 {/* Category Name */}
                 <div className="sm:col-span-4">
                   <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">
-                    Kategori Adı #{idx + 1}
+                    Ürün / Kategori Adı #{idx + 1}
                   </label>
                   <input
                     type="text"
@@ -429,7 +428,7 @@ export function RangeResolverDashboard({
             <table className="w-full text-xs text-left">
               <thead className="uppercase text-gray-600 bg-emerald-100/60 rounded-lg">
                 <tr>
-                  <th className="p-3">Kategori</th>
+                  <th className="p-3">Kategori / Perakende Ürün</th>
                   <th className="p-3">Adet</th>
                   <th className="p-3">Birim Fiyat</th>
                   <th className="p-3">Ara Toplam</th>

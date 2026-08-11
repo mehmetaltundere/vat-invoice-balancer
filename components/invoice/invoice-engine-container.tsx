@@ -9,7 +9,7 @@ const sampleIdeaSoftOrders: OrderItem[] = [
     id: "ord_1",
     orderNumber: "IS-2026-8801",
     customerName: "Ahmet Yılmaz",
-    tckn: "11111111111", // Default TCKN (Included in filter)
+    tckn: "11111111111", // Default TCKN
     totalAmount: 2700.0,
     date: "10 dk önce",
     status: "PENDING",
@@ -18,7 +18,7 @@ const sampleIdeaSoftOrders: OrderItem[] = [
     id: "ord_2",
     orderNumber: "IS-2026-8802",
     customerName: "Mehmet Demir",
-    tckn: "11111111111", // Default TCKN (Included in filter)
+    tckn: "", // Blank TCKN (Classified as Target for Exact-Match)
     totalAmount: 8200.5,
     date: "42 dk önce",
     status: "PENDING",
@@ -27,7 +27,7 @@ const sampleIdeaSoftOrders: OrderItem[] = [
     id: "ord_3",
     orderNumber: "IS-2026-8803",
     customerName: "Ayşe Kaya (Kurumsal)",
-    tckn: "99887766551", // Specific TCKN (Filtered out by default rule)
+    tckn: "99887766551", // Specific TCKN (Süzülür)
     totalAmount: 23100.0,
     date: "2 saat önce",
     status: "BALANCED",
@@ -36,7 +36,7 @@ const sampleIdeaSoftOrders: OrderItem[] = [
     id: "ord_4",
     orderNumber: "IS-2026-8804",
     customerName: "Zeynep Arslan",
-    tckn: "11111111111", // Default TCKN (Included in filter)
+    tckn: "11111111111", // Default TCKN
     totalAmount: 5400.0,
     date: "3 saat önce",
     status: "PENDING",
@@ -45,7 +45,7 @@ const sampleIdeaSoftOrders: OrderItem[] = [
     id: "ord_5",
     orderNumber: "IS-2026-8805",
     customerName: "Mustafa Çelik (Şahıs)",
-    tckn: "34829103948", // Specific TCKN (Filtered out by default rule)
+    tckn: "34829103948", // Specific TCKN (Süzülür)
     totalAmount: 11250.0,
     date: "4 saat önce",
     status: "BALANCED",
@@ -54,7 +54,7 @@ const sampleIdeaSoftOrders: OrderItem[] = [
     id: "ord_6",
     orderNumber: "IS-2026-8806",
     customerName: "Elif Öztürk",
-    tckn: "11111111111", // Default TCKN (Included in filter)
+    tckn: "", // Blank TCKN (Classified as Target for Exact-Match)
     totalAmount: 3950.0,
     date: "5 saat önce",
     status: "PENDING",
@@ -62,9 +62,9 @@ const sampleIdeaSoftOrders: OrderItem[] = [
 ];
 
 export function InvoiceEngineContainer() {
-  const [orders] = useState<OrderItem[]>(sampleIdeaSoftOrders);
+  const [orders, setOrders] = useState<OrderItem[]>(sampleIdeaSoftOrders);
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(
-    sampleIdeaSoftOrders[0] // Select first order by default
+    sampleIdeaSoftOrders[0]
   );
 
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([
@@ -83,6 +83,15 @@ export function InvoiceEngineContainer() {
     setSelectedOrderIds(orderIds);
   };
 
+  const handleUpdateOrder = (updatedOrder: OrderItem) => {
+    setOrders(
+      orders.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
+    );
+    if (selectedOrder?.id === updatedOrder.id) {
+      setSelectedOrder(updatedOrder);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       {/* Left Pane (Master): Order List */}
@@ -94,6 +103,7 @@ export function InvoiceEngineContainer() {
           selectedOrderIds={selectedOrderIds}
           onToggleBatchSelect={handleToggleBatchSelect}
           onSelectAllBatch={handleSelectAllBatch}
+          onUpdateOrder={handleUpdateOrder}
         />
       </div>
 
