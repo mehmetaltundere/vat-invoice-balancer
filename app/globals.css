@@ -2,54 +2,55 @@
 
 @layer base {
   :root {
-    --background: 240 5% 96%;
-    --foreground: 240 10% 3.9%;
+    --background: 210 20% 98%;
+    --foreground: 240 10% 4%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 240 10% 4%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 211 100% 50%;
+    --popover-foreground: 240 10% 4%;
+    --primary: 210 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
+    --secondary: 240 5% 92%;
+    --secondary-foreground: 240 10% 4%;
+    --muted: 240 5% 92%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 92%;
+    --accent-foreground: 240 10% 4%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 211 100% 50%;
-    --radius: 1rem;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 210 100% 50%;
+    --radius: 1.25rem;
   }
 
   .dark {
-    --background: 240 10% 4%;
+    --background: 0 0% 0%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 6%;
+    --card: 240 6% 8%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 6%;
+    --popover: 240 6% 8%;
     --popover-foreground: 0 0% 98%;
-    --primary: 211 100% 50%;
+    --primary: 210 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 3.7% 15.9%;
+    --secondary: 240 4% 16%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 4% 16%;
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 211 100% 50%;
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 210 100% 50%;
   }
 }
 
 body {
   background-color: #f8fafc;
   color: #0f172a;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -57,46 +58,37 @@ body {
 
 @media (prefers-color-scheme: dark) {
   body {
-    background-color: #030712;
+    background-color: #000000;
     color: #f8fafc;
   }
 }
 
-/* Glassmorphism helpers */
-.glass-panel {
+/* Glassmorphism helpers for Natural Titanium theme */
+.titanium-glass {
   background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-}
-
-.dark .glass-panel {
-  background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.05);
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+.dark .titanium-glass {
+  background: rgba(24, 24, 27, 0.65);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
 }
 
-.dark .glass-card {
-  background: rgba(17, 24, 39, 0.6);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
+/* Custom tactile spring transitions */
+.spring-transition {
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 /* Custom smooth scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -104,10 +96,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
+  background: rgba(161, 161, 170, 0.3);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+  background: rgba(161, 161, 170, 0.5);
 }

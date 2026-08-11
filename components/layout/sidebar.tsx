@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Receipt,
-  Settings,
   ShieldCheck,
   Zap,
   ArrowRightLeft,
@@ -21,7 +20,7 @@ const navigation = [
   },
   {
     name: "Fatura Kes (Invoice Generator)",
-    href: "/fatura-kes",
+    href: "/invoice",
     icon: Receipt,
   },
   {
@@ -60,6 +59,7 @@ export function Sidebar() {
           {navigation.map((item) => {
             const isActive =
               pathname === item.href ||
+              (item.href === "/invoice" && pathname === "/fatura-kes") ||
               (item.href === "/settings" && pathname === "/ayarlar");
             const Icon = item.icon;
 
