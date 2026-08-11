@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Scale,
   Zap,
+  Layers,
 } from "lucide-react";
 import {
   Card,
@@ -21,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OrderItem } from "./master-order-list";
-import { ExactMatchResult } from "@/services/balancer";
+import { ExactMatchResult, executeExactMatchResolver } from "@/services/balancer";
 import { Toast } from "@/components/ui/toast";
 import { GibCategoryComboBox } from "./gib-category-combobox";
 import { GranularVatItem } from "@/lib/services/vat-database";
@@ -37,10 +38,14 @@ interface CategoryInputRow {
 
 interface RangeResolverDashboardProps {
   selectedOrder: OrderItem | null;
+  batchOrders?: OrderItem[];
+  onBatchCompleted?: (orderIds: string[]) => void;
 }
 
 export function RangeResolverDashboard({
   selectedOrder,
+  batchOrders = [],
+  onBatchCompleted,
 }: RangeResolverDashboardProps) {
   const [categories, setCategories] = useState<CategoryInputRow[]>([
     {
@@ -70,6 +75,12 @@ export function RangeResolverDashboard({
   ]);
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{
+    current: number;
+    total: number;
+    currentOrder: string;
+  } | null>(null);
+
   const [calculationResult, setCalculationResult] =
     useState<ExactMatchResult | null>(null);
   const [toastInfo, setToastInfo] = useState<{
@@ -78,6 +89,7 @@ export function RangeResolverDashboard({
     type: "success" | "error";
   } | null>(null);
 
+  // STRICT MATH LOCK: Target percentages must sum to EXACTLY 100%
   const totalTargetPercent = categories.reduce(
     (sum, cat) => sum + (Number(cat.targetPercent) || 0),
     0
@@ -118,11 +130,18 @@ export function RangeResolverDashboard({
     );
   };
 
-  const handleRunRangeResolver = async () => {
-    if (!selectedOrder) {
+  /**
+   * BATCH PROCESSING & QUEUE ENGINE (for...of loop)
+   * Processes multiple selected orders sequentially to prevent rate-limiting
+   */
+  const handleRunBatchQueue = async () => {
+    const ordersToProcess =
+      batchOrders.length > 0 ? batchOrders : selectedOrder ? [selectedOrder] : [];
+
+    if (ordersToProcess.length === 0) {
       setToastInfo({
         title: "Sipariş Seçilmedi",
-        description: "Lütfen sol listeden dengelemek istediğiniz siparişi seçin.",
+        description: "Lütfen dengelemek istediğiniz en az bir sipariş seçin.",
         type: "error",
       });
       return;
@@ -131,7 +150,7 @@ export function RangeResolverDashboard({
     if (!isValidPercentSum) {
       setToastInfo({
         title: "Matematiksel Kural İhlali",
-        description: `Kategori hedef yüzdeleri toplamı %100 olmalıdır. (Şu anki: %${totalTargetPercent})`,
+        description: `Kategori hedef yüzdeleri toplamı kesinlikle %100 olmalıdır. (Şu anki: %${totalTargetPercent})`,
         type: "error",
       });
       return;
@@ -140,47 +159,74 @@ export function RangeResolverDashboard({
     setIsProcessing(true);
     setCalculationResult(null);
 
+    const completedIds: string[] = [];
+
     try {
-      const response = await fetch("/api/invoice/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: selectedOrder.orderNumber,
-          customerTckn: selectedOrder.tckn || "11111111111",
-          totalAmount: selectedOrder.totalAmount,
-          categories: categories.map((c) => ({
+      // Async Queue Loop
+      for (let i = 0; i < ordersToProcess.length; i++) {
+        const order = ordersToProcess[i];
+
+        // 1. Update UI progress sequentially
+        setBatchProgress({
+          current: i + 1,
+          total: ordersToProcess.length,
+          currentOrder: order.orderNumber,
+        });
+
+        // 2. Run Exact-Match math locally
+        const matchResult = executeExactMatchResolver(
+          order.orderNumber,
+          order.totalAmount,
+          categories.map((c) => ({
             id: c.id,
             name: c.name,
             minPrice: Number(c.minPrice),
             maxPrice: Number(c.maxPrice),
             targetPercent: Number(c.targetPercent),
             vatRate: Number(c.vatRate),
-          })),
-        }),
-      });
+          }))
+        );
 
-      const json = await response.json();
-      setIsProcessing(false);
+        // 3. POST to real Dopigo API Route (/api/dopigo/invoice)
+        const response = await fetch("/api/dopigo/invoice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: order.orderNumber,
+            totalAmount: matchResult.totalCalculatedAmount,
+            lines: matchResult.lines,
+          }),
+        });
 
-      if (json.success && json.data) {
-        setCalculationResult(json.data.matchResult);
-        setToastInfo({
-          title: "Exact-Match Fatura Üretildi!",
-          description: `INV-${selectedOrder.orderNumber} faturası başarıyla Dopigo API'ye iletildi.`,
-          type: "success",
-        });
-      } else {
-        setToastInfo({
-          title: "İşlem Başarısız",
-          description: json.error || "Fatura üretilemedi.",
-          type: "error",
-        });
+        // 4. AWAIT success response before moving to next order
+        const resJson = await response.json();
+        if (resJson.success) {
+          completedIds.push(order.id);
+        }
+
+        if (i === ordersToProcess.length - 1) {
+          setCalculationResult(matchResult);
+        }
       }
+
+      setIsProcessing(false);
+      setBatchProgress(null);
+
+      if (onBatchCompleted && completedIds.length > 0) {
+        onBatchCompleted(completedIds);
+      }
+
+      setToastInfo({
+        title: "Toplu Fatura İşlemi Tamamlandı!",
+        description: `${completedIds.length} adet sipariş exact-match algoritması ile dengelenerek Dopigo'ya gönderildi.`,
+        type: "success",
+      });
     } catch (err) {
       setIsProcessing(false);
+      setBatchProgress(null);
       setToastInfo({
-        title: "Sunucu Hatası",
-        description: "Bağlantı sırasında beklenmeyen bir hata oluştu.",
+        title: "Kuyruk Hatası",
+        description: "Toplu işlem sırasında bir hata oluştu.",
         type: "error",
       });
     }
@@ -196,21 +242,27 @@ export function RangeResolverDashboard({
               <Zap className="h-3.5 w-3.5 text-amber-400" /> Exact-Match Range Resolver
             </span>
             <h2 className="text-xl font-bold tracking-tight text-white">
-              {selectedOrder
+              {batchOrders.length > 1
+                ? `Toplu Kuyruk İşlemi (${batchOrders.length} Sipariş)`
+                : selectedOrder
                 ? `Sipariş: ${selectedOrder.orderNumber}`
                 : "Sipariş Seçilmedi"}
             </h2>
             <p className="text-xs text-gray-400 mt-0.5 font-medium">
-              Müşteri: {selectedOrder?.customerName || "—"} | TCKN:{" "}
+              Müşteri: {selectedOrder?.customerName || "Toplu Seçim"} | TCKN:{" "}
               {selectedOrder?.tckn || "Varsayılan (11111111111)"}
             </p>
           </div>
 
           <div className="text-left sm:text-right">
-            <span className="text-xs text-gray-400">İşlenecek Sipariş Tutarı</span>
+            <span className="text-xs text-gray-400">İşlenecek Toplam Tutar</span>
             <div className="text-2xl font-bold font-mono text-emerald-400">
               ₺
-              {selectedOrder
+              {batchOrders.length > 1
+                ? batchOrders
+                    .reduce((sum, o) => sum + o.totalAmount, 0)
+                    .toLocaleString("tr-TR", { minimumFractionDigits: 2 })
+                : selectedOrder
                 ? selectedOrder.totalAmount.toLocaleString("tr-TR", {
                     minimumFractionDigits: 2,
                   })
@@ -243,11 +295,34 @@ export function RangeResolverDashboard({
             </span>
           ) : (
             <span className="text-red-400 font-semibold flex items-center gap-1">
-              <AlertCircle className="h-4 w-4" /> Toplam %100 Olmalıdır!
+              <AlertCircle className="h-4 w-4" /> Toplam %100 Olmalıdır! Button Kilitli
             </span>
           )}
         </div>
       </Card>
+
+      {/* Live Batch Progress Bar */}
+      {batchProgress && (
+        <Card className="p-4 bg-blue-50 border border-blue-200 space-y-2">
+          <div className="flex items-center justify-between text-xs font-semibold text-blue-900">
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin text-[#0066CC]" />
+              Sipariş {batchProgress.current}/{batchProgress.total} Kesiliyor... ({batchProgress.currentOrder})
+            </span>
+            <span className="font-mono">
+              %{Math.round((batchProgress.current / batchProgress.total) * 100)}
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 h-2 rounded-full overflow-hidden">
+            <div
+              className="bg-[#0066CC] h-full transition-all duration-300"
+              style={{
+                width: `${(batchProgress.current / batchProgress.total) * 100}%`,
+              }}
+            />
+          </div>
+        </Card>
+      )}
 
       {/* Dynamic Retail Item ComboBox & Inputs */}
       <Card>
@@ -255,10 +330,10 @@ export function RangeResolverDashboard({
           <div>
             <CardTitle className="text-xl font-semibold tracking-tight text-gray-900 flex items-center gap-2">
               <Sliders className="h-4 w-4 text-[#0066CC]" />
-              Cloud KDV Veritabanı Perakende Kalemleri
+              Cloud KDV Veritabanı & Özel Kategoriler
             </CardTitle>
             <CardDescription>
-              Aşağıdaki Cloud arama barından spesifik perakende ürünü (örn: Kurdele, Toka, Koli Bandı) ekleyin
+              Cloud veritabanından veya Ayarlar&apos;da tanımladığınız özel kategorilerden arayıp ekleyin
             </CardDescription>
           </div>
         </CardHeader>
@@ -266,7 +341,7 @@ export function RangeResolverDashboard({
           {/* Cloud Search ComboBox */}
           <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200">
             <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Cloud KDV Veritabanından Perakende Ürünü Ekle
+              Cloud veya Özel KDV Kategorisi Ekle
             </p>
             <GibCategoryComboBox onSelectCategory={handleAddGranularItem} />
           </div>
@@ -386,19 +461,28 @@ export function RangeResolverDashboard({
             </div>
           ))}
 
-          {/* Action Trigger Button */}
+          {/* Action Trigger Button with STRICT MATH LOCK */}
           <div className="pt-2">
             <Button
-              onClick={handleRunRangeResolver}
-              disabled={isProcessing || !isValidPercentSum || !selectedOrder}
+              onClick={handleRunBatchQueue}
+              disabled={
+                isProcessing ||
+                !isValidPercentSum ||
+                (!selectedOrder && batchOrders.length === 0)
+              }
               variant="default"
               size="lg"
-              className="w-full gap-2 font-semibold py-3.5 text-sm"
+              className="w-full gap-2 font-semibold py-3.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isProcessing ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Exact-Match Algoritması Çalışıyor...
+                  Kuyruk İşleniyor...
+                </>
+              ) : batchOrders.length > 1 ? (
+                <>
+                  <Layers className="h-4 w-4" />
+                  Toplu Exact-Match Dengelemeyi Çalıştır ({batchOrders.length} Sipariş)
                 </>
               ) : (
                 <>

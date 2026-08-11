@@ -1,75 +1,39 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MasterOrderList, OrderItem } from "./master-order-list";
 import { RangeResolverDashboard } from "./range-resolver-dashboard";
 
-const sampleIdeaSoftOrders: OrderItem[] = [
-  {
-    id: "ord_1",
-    orderNumber: "IS-2026-8801",
-    customerName: "Ahmet Yılmaz",
-    tckn: "11111111111", // Default TCKN
-    totalAmount: 2700.0,
-    date: "10 dk önce",
-    status: "PENDING",
-  },
-  {
-    id: "ord_2",
-    orderNumber: "IS-2026-8802",
-    customerName: "Mehmet Demir",
-    tckn: "", // Blank TCKN (Classified as Target for Exact-Match)
-    totalAmount: 8200.5,
-    date: "42 dk önce",
-    status: "PENDING",
-  },
-  {
-    id: "ord_3",
-    orderNumber: "IS-2026-8803",
-    customerName: "Ayşe Kaya (Kurumsal)",
-    tckn: "99887766551", // Specific TCKN (Süzülür)
-    totalAmount: 23100.0,
-    date: "2 saat önce",
-    status: "BALANCED",
-  },
-  {
-    id: "ord_4",
-    orderNumber: "IS-2026-8804",
-    customerName: "Zeynep Arslan",
-    tckn: "11111111111", // Default TCKN
-    totalAmount: 5400.0,
-    date: "3 saat önce",
-    status: "PENDING",
-  },
-  {
-    id: "ord_5",
-    orderNumber: "IS-2026-8805",
-    customerName: "Mustafa Çelik (Şahıs)",
-    tckn: "34829103948", // Specific TCKN (Süzülür)
-    totalAmount: 11250.0,
-    date: "4 saat önce",
-    status: "BALANCED",
-  },
-  {
-    id: "ord_6",
-    orderNumber: "IS-2026-8806",
-    customerName: "Elif Öztürk",
-    tckn: "", // Blank TCKN (Classified as Target for Exact-Match)
-    totalAmount: 3950.0,
-    date: "5 saat önce",
-    status: "PENDING",
-  },
-];
-
 export function InvoiceEngineContainer() {
-  const [orders, setOrders] = useState<OrderItem[]>(sampleIdeaSoftOrders);
-  const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(
-    sampleIdeaSoftOrders[0]
-  );
+  const [orders, setOrders] = useState<OrderItem[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
 
-  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([
-    sampleIdeaSoftOrders[0].id,
-  ]);
+  // Fetch orders from real server-side API route (/api/ideasoft/orders)
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoadingOrders(true);
+
+    fetch("/api/ideasoft/orders")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted) return;
+        if (data.success && Array.isArray(data.orders)) {
+          setOrders(data.orders);
+          if (data.orders.length > 0) {
+            setSelectedOrder(data.orders[0]);
+            setSelectedOrderIds([data.orders[0].id]);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch IdeaSoft orders", err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingOrders(false);
+      });
+  }, []);
 
   const handleToggleBatchSelect = (orderId: string) => {
     if (selectedOrderIds.includes(orderId)) {
@@ -92,6 +56,23 @@ export function InvoiceEngineContainer() {
     }
   };
 
+  const handleBatchCompleted = (completedIds: string[]) => {
+    // Mark completed orders as BALANCED
+    setOrders(
+      orders.map((o) =>
+        completedIds.includes(o.id) ? { ...o, status: "BALANCED" } : o
+      )
+    );
+    // Uncheck completed orders
+    setSelectedOrderIds(
+      selectedOrderIds.filter((id) => !completedIds.includes(id))
+    );
+  };
+
+  const selectedBatchOrders = orders.filter((o) =>
+    selectedOrderIds.includes(o.id)
+  );
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       {/* Left Pane (Master): Order List */}
@@ -109,7 +90,11 @@ export function InvoiceEngineContainer() {
 
       {/* Right Pane (Detail / Action): Range Resolver Dashboard */}
       <div className="lg:col-span-8">
-        <RangeResolverDashboard selectedOrder={selectedOrder} />
+        <RangeResolverDashboard
+          selectedOrder={selectedOrder}
+          batchOrders={selectedBatchOrders}
+          onBatchCompleted={handleBatchCompleted}
+        />
       </div>
     </div>
   );

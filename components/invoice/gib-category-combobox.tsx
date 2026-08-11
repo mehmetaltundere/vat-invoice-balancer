@@ -5,11 +5,13 @@ import {
   fetchVATDatabase,
   GranularVatItem,
 } from "@/lib/services/vat-database";
-import { Search, Info, ChevronDown, Loader2, Cloud } from "lucide-react";
+import { Search, Info, ChevronDown, Loader2, Cloud, Sparkles } from "lucide-react";
 
 interface GibCategoryComboBoxProps {
   onSelectCategory: (item: GranularVatItem) => void;
 }
+
+const STORAGE_KEY = "nexus_custom_vat_categories";
 
 export function GibCategoryComboBox({
   onSelectCategory,
@@ -26,11 +28,41 @@ export function GibCategoryComboBox({
     setIsLoading(true);
 
     const timer = setTimeout(() => {
-      fetchVATDatabase(query).then((data) => {
-        if (isMounted) {
-          setItems(data);
-          setIsLoading(false);
+      fetchVATDatabase(query).then((cloudData) => {
+        if (!isMounted) return;
+
+        // Load and merge custom categories saved in localStorage
+        let customItems: GranularVatItem[] = [];
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const rawCustom = JSON.parse(saved);
+            customItems = rawCustom.map((c: any) => ({
+              id: c.id,
+              name: `${c.name} (Özel)`,
+              sku: "OZEL-CAT",
+              vatRate: c.vatRate,
+              categoryGroup: "Özel Kategori (Settings)",
+              officialGibMatch: c.description || "Kullanıcı Tanımlı",
+            }));
+          }
+        } catch (e) {
+          console.error("Failed to read custom categories in ComboBox", e);
         }
+
+        // Filter custom items by query
+        if (query && query.trim()) {
+          const q = query.toLowerCase().trim();
+          customItems = customItems.filter(
+            (item) =>
+              item.name.toLowerCase().includes(q) ||
+              item.categoryGroup.toLowerCase().includes(q)
+          );
+        }
+
+        // Merge custom items at top of list
+        setItems([...customItems, ...cloudData]);
+        setIsLoading(false);
       });
     }, 150);
 
@@ -64,7 +96,7 @@ export function GibCategoryComboBox({
           <div className="flex items-center gap-2 truncate">
             <Cloud className="h-3.5 w-3.5 text-[#0066CC] shrink-0" />
             <span className="truncate text-gray-700">
-              {query || "Cloud KDV Veritabanından Ürün/Kategori Ara (Örn: Kurdele, Toka, Gözlük)..."}
+              {query || "Cloud & Özel Kategorilerden Ürün/Kategori Ara..."}
             </span>
           </div>
           <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
@@ -79,7 +111,7 @@ export function GibCategoryComboBox({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Perakende ürün adı veya SKU ara (Örn: Saten Kurdele)..."
+                placeholder="Perakende ürün veya özel kategori adı ara..."
                 autoFocus
                 className="w-full bg-transparent text-xs text-gray-900 font-medium placeholder:text-gray-400 focus:outline-none"
               />
@@ -89,7 +121,7 @@ export function GibCategoryComboBox({
             <div className="max-h-64 overflow-y-auto p-1.5 space-y-1">
               {items.length === 0 && !isLoading ? (
                 <div className="p-3 text-center text-xs text-gray-400 font-medium">
-                  Cloud veritabanında eşleşen perakende ürün bulunamadı.
+                  Eşleşen perakende ürün veya özel kategori bulunamadı.
                 </div>
               ) : (
                 items.map((item) => (
@@ -107,9 +139,15 @@ export function GibCategoryComboBox({
                         <span className="font-semibold text-xs text-gray-900 group-hover:text-[#0066CC]">
                           {item.name}
                         </span>
-                        <span className="text-[10px] font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200">
-                          {item.sku}
-                        </span>
+                        {item.sku === "OZEL-CAT" ? (
+                          <span className="text-[10px] font-semibold bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-1">
+                            <Sparkles className="h-2.5 w-2.5" /> Özel
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200">
+                            {item.sku}
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">
                         Grup: {item.categoryGroup} ({item.officialGibMatch})

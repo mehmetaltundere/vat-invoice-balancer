@@ -34,10 +34,10 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-72 shrink-0 border-r border-gray-200/80 bg-[#f0f0f2] text-gray-900 flex flex-col justify-between shadow-xs">
+    <aside className="w-72 shrink-0 border-r border-gray-200 bg-[#F4F4F5] text-gray-900 flex flex-col justify-between shadow-xs">
       <div className="p-6">
         {/* Brand Logo & Title */}
-        <div className="flex items-center gap-3 pb-6 border-b border-gray-200">
+        <div className="flex items-center gap-3 pb-6 border-b border-gray-200/80">
           <div className="h-10 w-10 rounded-xl bg-[#0066CC] flex items-center justify-center text-white shadow-xs">
             <ArrowRightLeft className="h-5 w-5" />
           </div>
@@ -68,10 +68,10 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium transition-all duration-150 cursor-pointer group",
+                  "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-all duration-150 cursor-pointer group",
                   isActive
-                    ? "bg-[#0066CC] text-white shadow-xs font-semibold"
-                    : "bg-transparent text-gray-700 hover:bg-gray-200/60 hover:text-gray-900"
+                    ? "bg-[#0066CC] text-white shadow-xs"
+                    : "bg-transparent text-gray-700 hover:bg-gray-200/70 hover:text-gray-900"
                 )}
               >
                 <Icon
@@ -88,7 +88,7 @@ export function Sidebar() {
       </div>
 
       {/* Middleware Engine Status Footnote */}
-      <div className="p-4 m-4 rounded-xl bg-white/80 border border-gray-200 shadow-2xs">
+      <div className="p-4 m-4 rounded-xl bg-white border border-gray-200 shadow-2xs">
         <div className="flex items-center gap-2 mb-1.5">
           <Zap className="h-4 w-4 text-amber-500" />
           <span className="text-xs font-semibold text-gray-800">

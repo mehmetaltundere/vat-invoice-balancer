@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Plus, ShieldAlert, CheckCircle, Trash2, Sliders } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Plus, ShieldAlert, Trash2, Sliders } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -21,22 +21,45 @@ export interface CustomCategoryItem {
   description?: string;
 }
 
+const STORAGE_KEY = "nexus_custom_vat_categories";
+
+const defaultCustomCategories: CustomCategoryItem[] = [
+  {
+    id: "cust_1",
+    name: "Özel Tasarım Hediyelik Kurdele & Paketleme",
+    vatRate: 10,
+    description: "Manuel tanımlanmış özel hediye paketi aksesuarları",
+  },
+];
+
 export function CustomCategoryForm() {
   const [name, setName] = useState("");
   const [vatRate, setVatRate] = useState<number>(20);
   const [description, setDescription] = useState("");
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [customList, setCustomList] = useState<CustomCategoryItem[]>([
-    {
-      id: "cust_1",
-      name: "Özel Aksesuar Ürünleri (Manuel Eşleşme)",
-      vatRate: 20,
-      description: "GİB resmi kodu harici özel eşleştirme",
-    },
-  ]);
-
+  const [customList, setCustomList] = useState<CustomCategoryItem[]>(defaultCustomCategories);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setCustomList(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error("Failed to load custom categories", e);
+    }
+  }, []);
+
+  const saveListToStorage = (newList: CustomCategoryItem[]) => {
+    setCustomList(newList);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
+    } catch (e) {
+      console.error("Failed to save custom categories", e);
+    }
+  };
 
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,14 +89,16 @@ export function CustomCategoryForm() {
       description: result.data.description,
     };
 
-    setCustomList([...customList, newCategory]);
+    const updatedList = [...customList, newCategory];
+    saveListToStorage(updatedList);
     setName("");
     setDescription("");
-    setToastMessage(`"${newCategory.name}" kategorisi güvenle kaydedildi.`);
+    setToastMessage(`"${newCategory.name}" kategorisi başarıyla kaydedildi.`);
   };
 
   const handleRemove = (id: string) => {
-    setCustomList(customList.filter((item) => item.id !== id));
+    const updatedList = customList.filter((item) => item.id !== id);
+    saveListToStorage(updatedList);
   };
 
   return (
