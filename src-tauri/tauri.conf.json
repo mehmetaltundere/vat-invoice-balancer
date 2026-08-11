@@ -1,51 +1,36 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "EFA",
+  "version": "0.1.0",
+  "identifier": "com.exlora.efa",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:3000",
-    "distDir": "../out"
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../out"
   },
-  "package": {
-    "productName": "EFA",
-    "version": "0.1.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "http": {
-        "all": true,
-        "request": true,
-        "scope": ["https://*"]
-      }
-    },
-    "bundle": {
-      "active": true,
-      "category": "DeveloperTool",
-      "copyright": "EXlora Fatura Asistanı © 2026",
-      "externalBin": [],
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "identifier": "com.exlora.efa",
-      "longDescription": "EFA - EXlora Fatura Asistanı IdeaSoft ve Dopigo KDV Dengeleme Middleware",
-      "shortDescription": "EFA Fatura Asistanı",
-      "targets": "all"
-    },
-    "security": {
-      "csp": null
-    },
+  "app": {
     "windows": [
       {
-        "fullscreen": false,
-        "height": 800,
-        "resizable": true,
         "title": "EFA - EXlora Fatura Asistanı",
-        "width": 1280
+        "width": 1280,
+        "height": 800,
+        "resizable": true
       }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
     ]
   }
 }
