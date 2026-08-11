@@ -3,20 +3,23 @@ import { OrderItem } from "@/components/invoice/master-order-list";
 
 /**
  * Server-Side IdeaSoft API Route Handler
- * Reads environment variables securely and fetches live ecommerce orders
+ * Reads credentials from request headers (passed from UI Settings) or process.env
  */
-export async function GET() {
-  const clientId = process.env.IDEASOFT_CLIENT_ID || "";
-  const clientSecret = process.env.IDEASOFT_CLIENT_SECRET || "";
+export async function GET(request: Request) {
+  const headerClientId = request.headers.get("x-ideasoft-client-id");
+  const headerClientSecret = request.headers.get("x-ideasoft-client-secret");
+
+  const clientId = headerClientId || process.env.IDEASOFT_CLIENT_ID || "";
+  const clientSecret = headerClientSecret || process.env.IDEASOFT_CLIENT_SECRET || "";
   const apiBaseUrl = process.env.IDEASOFT_API_URL || "https://api.myideasoft.com/api";
 
   try {
-    // If credentials are completely invalid or empty, return 401 Unauthorized
+    // If credentials are missing or explicitly invalid, return 401 Unauthorized
     if (!clientId || !clientSecret || clientId.includes("invalid")) {
       return NextResponse.json(
         {
           success: false,
-          error: "Bağlantı Hatası: IdeaSoft API anahtarınız geçersiz veya eksik. Lütfen Ayarlar sayfasından kontrol edin.",
+          error: "IdeaSoft Bağlantı Hatası: Lütfen API anahtarlarınızı Ayarlar sayfasından kontrol edin.",
           code: "UNAUTHORIZED_API_KEY",
         },
         { status: 401 }
@@ -41,14 +44,14 @@ export async function GET() {
       return NextResponse.json(
         {
           success: false,
-          error: "Bağlantı Hatası: IdeaSoft API anahtarınız geçersiz veya eksik. Lütfen Ayarlar sayfasından kontrol edin.",
+          error: "IdeaSoft Bağlantı Hatası: Lütfen API anahtarlarınızı Ayarlar sayfasından kontrol edin.",
           code: "UNAUTHORIZED_API_KEY",
         },
         { status: 401 }
       );
     }
 
-    // Fallback structured orders if external server endpoint is unreachable
+    // Fallback structured orders for live demo if external server endpoint is offline
     if (rawOrders.length === 0) {
       rawOrders = [
         {
@@ -109,7 +112,7 @@ export async function GET() {
     return NextResponse.json(
       {
         success: false,
-        error: "Bağlantı Hatası: IdeaSoft API anahtarınız geçersiz veya eksik. Lütfen Ayarlar sayfasından kontrol edin.",
+        error: "IdeaSoft Bağlantı Hatası: Lütfen API anahtarlarınızı Ayarlar sayfasından kontrol edin.",
       },
       { status: 500 }
     );

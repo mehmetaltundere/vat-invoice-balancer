@@ -11,6 +11,8 @@ import {
   Scale,
   Zap,
   Layers,
+  AlertTriangle,
+  Lock,
 } from "lucide-react";
 import {
   Card,
@@ -34,12 +36,13 @@ interface RangeResolverDashboardProps {
   onBatchCompleted?: (orderIds: string[]) => void;
 }
 
+const STORAGE_KEY = "nexus_vat_api_settings";
+
 export function RangeResolverDashboard({
   selectedOrder,
   batchOrders = [],
   onBatchCompleted,
 }: RangeResolverDashboardProps) {
-  // Connect to Zustand Global Store for persistent state
   const {
     categories,
     updateCategory,
@@ -68,6 +71,7 @@ export function RangeResolverDashboard({
     0
   );
   const isValidPercentSum = Math.abs(totalTargetPercent - 100) < 0.01;
+  const hasSelectedOrders = batchOrders.length > 0 || selectedOrder !== null;
 
   const handleAddGranularItem = (item: GranularVatItem) => {
     addCategory({
@@ -80,6 +84,23 @@ export function RangeResolverDashboard({
     });
   };
 
+  /**
+   * Reads UI API Credentials from localStorage to send in headers
+   */
+  const getApiCredentials = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error("Failed to read settings for headers", e);
+    }
+    return {
+      ideaSoftClientId: "",
+      ideaSoftClientSecret: "",
+      dopigoApiToken: "",
+    };
+  };
+
   const handleRunBatchQueue = async () => {
     const ordersToProcess =
       batchOrders.length > 0 ? batchOrders : selectedOrder ? [selectedOrder] : [];
@@ -87,7 +108,7 @@ export function RangeResolverDashboard({
     if (ordersToProcess.length === 0) {
       setToastInfo({
         title: "Sipariş Seçilmedi",
-        description: "Lütfen dengelemek istediğiniz en az bir sipariş seçin.",
+        description: "Lütfen sol taraftaki listeden dengelemek istediğiniz en az bir siparişi seçin.",
         type: "error",
       });
       return;
@@ -96,7 +117,7 @@ export function RangeResolverDashboard({
     if (!isValidPercentSum) {
       setToastInfo({
         title: "Matematiksel Dengeleme Hatası",
-        description: "Seçilen aralıklar hedef tutarı karşılamıyor. (Toplam hedef %100 olmalıdır)",
+        description: `İşlem Durduruldu: Hedef yüzdelerinizin toplamı tam olarak %100 olmalıdır. (Şu an: %${totalTargetPercent})`,
         type: "error",
       });
       return;
@@ -106,6 +127,7 @@ export function RangeResolverDashboard({
     setCalculationResult(null);
 
     const completedIds: string[] = [];
+    const creds = getApiCredentials();
 
     try {
       // Async Queue Loop
@@ -118,7 +140,6 @@ export function RangeResolverDashboard({
           currentOrder: order.orderNumber,
         });
 
-        // Try executing local math resolver with graceful error catch
         let matchResult: ExactMatchResult;
         try {
           matchResult = executeExactMatchResolver(
@@ -137,10 +158,13 @@ export function RangeResolverDashboard({
           throw new Error("Matematiksel Dengeleme Hatası: Seçilen aralıklar hedef tutarı karşılamıyor.");
         }
 
-        // POST to Dopigo API Route
+        // POST to Dopigo API Route passing UI credentials in headers
         const response = await fetch("/api/dopigo/invoice", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-dopigo-api-token": creds.dopigoApiToken,
+          },
           body: JSON.stringify({
             orderId: order.orderNumber,
             totalAmount: matchResult.totalCalculatedAmount,
@@ -148,16 +172,15 @@ export function RangeResolverDashboard({
           }),
         });
 
-        if (response.status === 401) {
-          throw new Error("Bağlantı Hatası: IdeaSoft veya Dopigo API anahtarınız geçersiz veya eksik. Lütfen Ayarlar sayfasından kontrol edin.");
+        const resJson = await response.json();
+
+        if (!response.ok || !resJson.success) {
+          throw new Error(
+            resJson.error || "Dopigo Fatura İletim Hatası: Lütfen API token'ınızı Ayarlar sayfasından kontrol edin."
+          );
         }
 
-        const resJson = await response.json();
-        if (resJson.success) {
-          completedIds.push(order.id);
-        } else {
-          throw new Error(resJson.error || "Fatura gönderimi başarısız.");
-        }
+        completedIds.push(order.id);
 
         if (i === ordersToProcess.length - 1) {
           setCalculationResult(matchResult);
@@ -180,8 +203,8 @@ export function RangeResolverDashboard({
       setIsProcessing(false);
       setBatchProgress(null);
       setToastInfo({
-        title: "İşlem Hatası",
-        description: err.message || "Matematiksel Dengeleme Hatası: Seçilen aralıklar hedef tutarı karşılamıyor.",
+        title: "Dopigo Fatura İletim Hatası",
+        description: err.message || "Dopigo Fatura İletim Hatası: Sunucuyla iletişim kurulamadı.",
         type: "error",
       });
     }
@@ -250,7 +273,7 @@ export function RangeResolverDashboard({
             </span>
           ) : (
             <span className="text-red-400 font-semibold flex items-center gap-1">
-              <AlertCircle className="h-4 w-4" /> Toplam %100 Olmalıdır! Button Kilitli
+              <AlertCircle className="h-4 w-4" /> Toplam %100 Olmalıdır!
             </span>
           )}
         </div>
@@ -404,14 +427,32 @@ export function RangeResolverDashboard({
             </div>
           ))}
 
-          {/* Action Trigger Button with STRICT MATH LOCK */}
-          <div className="pt-2">
+          {/* DYNAMIC EXPLANATORY ERROR MESSAGES (NO MORE SILENT LOCKS) */}
+          <div className="space-y-2 pt-2">
+            {!hasSelectedOrders && (
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in-50">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                <span>
+                  İşlem Bekliyor: Lütfen sol taraftaki listeden dengelemek istediğiniz en az bir siparişi seçin.
+                </span>
+              </div>
+            )}
+
+            {!isValidPercentSum && (
+              <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in-50">
+                <Lock className="h-4 w-4 text-red-600 shrink-0" />
+                <span>
+                  İşlem Durduruldu: Hedef yüzdelerinizin toplamı tam olarak %100 olmalıdır. (Şu an: %{totalTargetPercent.toFixed(1)})
+                </span>
+              </div>
+            )}
+
             <Button
               onClick={handleRunBatchQueue}
               disabled={
                 isProcessing ||
                 !isValidPercentSum ||
-                (!selectedOrder && batchOrders.length === 0)
+                !hasSelectedOrders
               }
               variant="default"
               size="lg"

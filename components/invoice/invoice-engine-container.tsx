@@ -6,6 +6,8 @@ import { RangeResolverDashboard } from "./range-resolver-dashboard";
 import { useInvoiceStore } from "@/lib/store/useInvoiceStore";
 import { Toast } from "@/components/ui/toast";
 
+const STORAGE_KEY = "nexus_vat_api_settings";
+
 export function InvoiceEngineContainer() {
   const {
     orders,
@@ -20,35 +22,57 @@ export function InvoiceEngineContainer() {
 
   const [apiErrorToast, setApiErrorToast] = useState<string | null>(null);
 
-  // Fetch orders from server-side API route (/api/ideasoft/orders)
+  /**
+   * Reads UI API Credentials from localStorage to send in headers
+   */
+  const getApiCredentials = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error("Failed to read settings for headers", e);
+    }
+    return {
+      ideaSoftClientId: "",
+      ideaSoftClientSecret: "",
+      dopigoApiToken: "",
+    };
+  };
+
   useEffect(() => {
     let isMounted = true;
 
     if (orders.length === 0) {
-      fetch("/api/ideasoft/orders")
+      const creds = getApiCredentials();
+
+      fetch("/api/ideasoft/orders", {
+        headers: {
+          "x-ideasoft-client-id": creds.ideaSoftClientId,
+          "x-ideasoft-client-secret": creds.ideaSoftClientSecret,
+        },
+      })
         .then(async (res) => {
-          if (res.status === 401) {
-            const errJson = await res.json();
+          const resJson = await res.json().catch(() => ({}));
+
+          if (!res.ok || !resJson.success) {
             throw new Error(
-              errJson.error ||
-                "Bağlantı Hatası: IdeaSoft API anahtarınız geçersiz veya eksik. Lütfen Ayarlar sayfasından kontrol edin."
+              resJson.error ||
+                "IdeaSoft Bağlantı Hatası: Lütfen API anahtarlarınızı Ayarlar sayfasından kontrol edin."
             );
           }
-          return res.json();
+          return resJson;
         })
         .then((data) => {
           if (!isMounted) return;
           if (data.success && Array.isArray(data.orders)) {
             setOrders(data.orders);
-          } else if (data.error) {
-            setApiErrorToast(data.error);
           }
         })
         .catch((err: any) => {
           if (!isMounted) return;
           setApiErrorToast(
             err.message ||
-              "Bağlantı Hatası: IdeaSoft API anahtarınız geçersiz veya eksik. Lütfen Ayarlar sayfasından kontrol edin."
+              "IdeaSoft Bağlantı Hatası: Lütfen API anahtarlarınızı Ayarlar sayfasından kontrol edin."
           );
         });
     }
@@ -99,7 +123,7 @@ export function InvoiceEngineContainer() {
 
       {apiErrorToast && (
         <Toast
-          title="API Bağlantı Uyarısı"
+          title="IdeaSoft Bağlantı Hatası"
           description={apiErrorToast}
           type="error"
           onClose={() => setApiErrorToast(null)}
