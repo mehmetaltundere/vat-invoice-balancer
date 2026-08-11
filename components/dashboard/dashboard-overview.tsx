@@ -14,18 +14,17 @@ export function DashboardOverview() {
   return (
     <div className="space-y-6">
       {/* Top Banner / Header Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#2c2c2e]/70 backdrop-blur-3xl p-6 sm:p-8 rounded-3xl text-white shadow-2xl border border-white/10 relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-80 h-80 bg-[#0A84FF]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-6 sm:p-8 rounded-2xl text-white shadow-sm relative overflow-hidden">
         <div className="space-y-1.5 relative z-10">
           <div className="flex items-center gap-2">
-            <span className="bg-[#0A84FF]/20 text-[#0A84FF] text-[11px] font-bold px-3 py-1 rounded-full border border-[#0A84FF]/30 flex items-center gap-1.5">
+            <span className="bg-white/20 text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-md flex items-center gap-1.5">
               <Sparkles className="h-3 w-3" /> E-Ticaret KDV Ara Yazılımı
             </span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+          <h2 className="text-xl font-semibold tracking-tight text-white">
             IdeaSoft ➔ Dopigo Fatura Dengeleyici
           </h2>
-          <p className="text-zinc-400 text-xs sm:text-sm max-w-xl leading-relaxed font-medium">
+          <p className="text-blue-100 text-xs sm:text-sm max-w-xl leading-relaxed font-normal">
             IdeaSoft siparişlerini matematiksel exact-match algoritmasıyla işleyerek KDV limitlerini optimize eder ve Dopigo API&apos;ye güvenle iletir.
           </p>
         </div>
@@ -34,7 +33,7 @@ export function DashboardOverview() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-2 border-white/15 bg-white/10 hover:bg-white/20 text-white rounded-2xl"
+            className="gap-2 border-white/20 bg-white/10 text-white hover:bg-white/20"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             Senkronize Et
@@ -51,7 +50,7 @@ export function DashboardOverview() {
           change="+8 sipariş"
           changeType="positive"
           icon={ShoppingBag}
-          iconColor="text-[#0A84FF] bg-[#0A84FF]/15 border border-[#0A84FF]/30"
+          iconColor="text-blue-600 bg-blue-50 border border-blue-100"
         />
         <StatCard
           title="Dengelenen Faturalar"
@@ -60,16 +59,16 @@ export function DashboardOverview() {
           change="%98.4 Başarı"
           changeType="positive"
           icon={Receipt}
-          iconColor="text-[#30D158] bg-[#30D158]/15 border border-[#30D158]/30"
+          iconColor="text-emerald-600 bg-emerald-50 border border-emerald-100"
         />
         <StatCard
           title="KDV Tasarruf / Denge"
           value="₺12,480.00"
           subtitle="Exact-match algoritma farkı"
-          change="Optümaya Uygun"
+          change="Optimaye Uygun"
           changeType="positive"
           icon={Scale}
-          iconColor="text-[#FF9F0A] bg-[#FF9F0A]/15 border border-[#FF9F0A]/30"
+          iconColor="text-indigo-600 bg-indigo-50 border border-indigo-100"
         />
         <StatCard
           title="Ortalama KDV Oranı"
@@ -78,7 +77,7 @@ export function DashboardOverview() {
           change="Limit Dahilinde"
           changeType="neutral"
           icon={Sparkles}
-          iconColor="text-[#BF5AF2] bg-[#BF5AF2]/15 border border-[#BF5AF2]/30"
+          iconColor="text-purple-600 bg-purple-50 border border-purple-100"
         />
       </div>
 

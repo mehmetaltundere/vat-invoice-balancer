@@ -53,15 +53,15 @@ export function RecentOrders() {
     <Card className="col-span-full lg:col-span-2">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <div>
-          <CardTitle className="text-base font-bold flex items-center gap-2 text-white">
-            <ShoppingBag className="h-4 w-4 text-[#0A84FF]" />
+          <CardTitle className="text-xl font-semibold tracking-tight text-gray-900 flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-[#0066CC]" />
             IdeaSoft Son Sipariş Akışı
           </CardTitle>
           <CardDescription>
             IdeaSoft API üzerinden çekilen son siparişler ve KDV durumu
           </CardDescription>
         </div>
-        <Button variant="outline" size="sm" className="gap-1 text-xs rounded-xl">
+        <Button variant="outline" size="sm" className="gap-1 text-xs rounded-lg">
           Tümünü Gör
           <ArrowUpRight className="h-3.5 w-3.5" />
         </Button>
@@ -69,45 +69,45 @@ export function RecentOrders() {
       <CardContent>
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="uppercase bg-white/5 text-zinc-400 rounded-xl">
+            <thead className="uppercase bg-gray-50 text-gray-500 rounded-lg">
               <tr>
-                <th className="px-4 py-3 font-semibold rounded-l-xl">Sipariş Kodu</th>
+                <th className="px-4 py-3 font-semibold rounded-l-lg">Sipariş Kodu</th>
                 <th className="px-4 py-3 font-semibold">Müşteri</th>
                 <th className="px-4 py-3 font-semibold">Tutar</th>
                 <th className="px-4 py-3 font-semibold">KDV</th>
                 <th className="px-4 py-3 font-semibold">Durum</th>
-                <th className="px-4 py-3 font-semibold text-right rounded-r-xl">Zaman</th>
+                <th className="px-4 py-3 font-semibold text-right rounded-r-lg">Zaman</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-gray-100">
               {sampleOrders.map((order) => (
                 <tr
                   key={order.id}
-                  className="hover:bg-white/5 transition-colors font-medium"
+                  className="hover:bg-gray-100 transition-colors cursor-pointer font-medium"
                 >
-                  <td className="px-4 py-3.5 font-mono font-bold text-[#0A84FF]">
+                  <td className="px-4 py-3.5 font-mono font-bold text-[#0066CC]">
                     {order.id}
                   </td>
-                  <td className="px-4 py-3.5 text-white font-semibold">
+                  <td className="px-4 py-3.5 text-gray-900 font-semibold">
                     {order.customer}
                   </td>
-                  <td className="px-4 py-3.5 font-mono text-zinc-200">
+                  <td className="px-4 py-3.5 font-mono text-gray-800">
                     {order.amount}
                   </td>
-                  <td className="px-4 py-3.5 text-zinc-400">
+                  <td className="px-4 py-3.5 text-gray-500">
                     {order.vat}
                   </td>
                   <td className="px-4 py-3.5">
                     <Badge variant={order.badgeVariant} className="text-[11px]">
                       {order.badgeVariant === "success" ? (
-                        <CheckCircle className="h-3 w-3 mr-1 text-[#30D158]" />
+                        <CheckCircle className="h-3 w-3 mr-1 text-emerald-600" />
                       ) : (
-                        <Clock className="h-3 w-3 mr-1 text-[#FF9F0A]" />
+                        <Clock className="h-3 w-3 mr-1 text-amber-600" />
                       )}
                       {order.status}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3.5 text-right text-zinc-400">
+                  <td className="px-4 py-3.5 text-right text-gray-400">
                     {order.time}
                   </td>
                 </tr>

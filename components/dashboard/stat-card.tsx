@@ -19,46 +19,46 @@ export function StatCard({
   change,
   changeType = "neutral",
   icon: Icon,
-  iconColor = "text-[#0A84FF] bg-[#0A84FF]/15 border border-[#0A84FF]/30",
+  iconColor = "text-blue-600 bg-blue-50 border border-blue-100",
 }: StatCardProps) {
   return (
-    <Card className="hover:border-white/20 transition-all spring-bounce">
+    <Card className="hover:border-gray-300 hover:shadow-md hover:scale-[1.01] transition-all cursor-pointer">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
             {title}
           </p>
-          <div className={cn("p-2.5 rounded-2xl", iconColor)}>
+          <div className={cn("p-2.5 rounded-xl", iconColor)}>
             <Icon className="h-4 w-4" />
           </div>
         </div>
 
         <div className="mt-3">
-          <h4 className="text-2xl font-bold tracking-tight text-white font-mono">
+          <h4 className="text-xl font-bold tracking-tight text-gray-900 font-mono">
             {value}
           </h4>
           {subtitle && (
-            <p className="text-xs text-zinc-400 mt-1 font-medium">
+            <p className="text-xs text-gray-500 mt-1 font-normal">
               {subtitle}
             </p>
           )}
         </div>
 
         {change && (
-          <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
             <span
               className={cn(
-                "font-bold px-2.5 py-0.5 rounded-full text-[11px]",
+                "font-semibold px-2 py-0.5 rounded-md text-[11px]",
                 changeType === "positive"
-                  ? "bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30"
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                   : changeType === "negative"
-                  ? "bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30"
-                  : "bg-white/10 text-zinc-300 border border-white/15"
+                  ? "bg-red-50 text-red-700 border border-red-200"
+                  : "bg-gray-100 text-gray-700 border border-gray-200"
               )}
             >
               {change}
             </span>
-            <span className="text-zinc-500 text-[10px]">Son 24 saat</span>
+            <span className="text-gray-400 text-[10px]">Son 24 saat</span>
           </div>
         )}
       </CardContent>

@@ -9,12 +9,8 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  Percent,
-  Receipt,
   Scale,
-  Send,
   Zap,
-  ShieldCheck,
 } from "lucide-react";
 import {
   Card,
@@ -22,13 +18,14 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OrderItem } from "./master-order-list";
 import { ExactMatchResult } from "@/services/balancer";
 import { Toast } from "@/components/ui/toast";
+import { GibCategoryComboBox } from "./gib-category-combobox";
+import { GibVatCategory } from "@/lib/data/gib-categories";
 
 interface CategoryInputRow {
   id: string;
@@ -49,7 +46,7 @@ export function RangeResolverDashboard({
   const [categories, setCategories] = useState<CategoryInputRow[]>([
     {
       id: "cat_1",
-      name: "Elektronik Aksesuar",
+      name: "Elektronik Cihazlar, Telefon ve Bilgisayar",
       minPrice: 100,
       maxPrice: 800,
       targetPercent: 50,
@@ -57,7 +54,7 @@ export function RangeResolverDashboard({
     },
     {
       id: "cat_2",
-      name: "Giyim & Tekstil",
+      name: "Tekstil, Konfeksiyon ve Giyim Ürünleri",
       minPrice: 50,
       maxPrice: 400,
       targetPercent: 30,
@@ -65,11 +62,11 @@ export function RangeResolverDashboard({
     },
     {
       id: "cat_3",
-      name: "Ev & Yaşam Gereçleri",
+      name: "Temel Gıda Maddeleri (Un, Ekmek, Süt)",
       minPrice: 30,
       maxPrice: 200,
       targetPercent: 20,
-      vatRate: 8,
+      vatRate: 1,
     },
   ]);
 
@@ -82,23 +79,22 @@ export function RangeResolverDashboard({
     type: "success" | "error";
   } | null>(null);
 
-  // Overarching Mathematical Validation Rule: Target percentages must equal 100%
   const totalTargetPercent = categories.reduce(
     (sum, cat) => sum + (Number(cat.targetPercent) || 0),
     0
   );
   const isValidPercentSum = Math.abs(totalTargetPercent - 100) < 0.01;
 
-  const handleAddCategory = () => {
+  const handleAddGibCategory = (gibCategory: GibVatCategory) => {
     setCategories([
       ...categories,
       {
         id: `cat_${Date.now()}`,
-        name: `Kategori ${categories.length + 1}`,
+        name: gibCategory.name,
         minPrice: 50,
         maxPrice: 500,
         targetPercent: 0,
-        vatRate: 20,
+        vatRate: gibCategory.defaultVatRate,
       },
     ]);
   };
@@ -194,25 +190,25 @@ export function RangeResolverDashboard({
   return (
     <div className="space-y-6">
       {/* Target Percentage Validation Bar Header */}
-      <Card className="rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm overflow-hidden p-6 bg-slate-900 text-white relative">
+      <Card className="p-6 bg-gray-900 text-white relative border-none">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-1.5 mb-1">
               <Zap className="h-3.5 w-3.5 text-amber-400" /> Exact-Match Range Resolver
             </span>
-            <h2 className="text-xl font-bold tracking-tight">
+            <h2 className="text-xl font-bold tracking-tight text-white">
               {selectedOrder
                 ? `Sipariş: ${selectedOrder.orderNumber}`
                 : "Sipariş Seçilmedi"}
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-gray-400 mt-0.5 font-medium">
               Müşteri: {selectedOrder?.customerName || "—"} | TCKN:{" "}
               {selectedOrder?.tckn || "—"}
             </p>
           </div>
 
           <div className="text-left sm:text-right">
-            <span className="text-xs text-slate-400">İşlenecek Sipariş Tutarı</span>
+            <span className="text-xs text-gray-400">İşlenecek Sipariş Tutarı</span>
             <div className="text-2xl font-bold font-mono text-emerald-400">
               ₺
               {selectedOrder
@@ -225,10 +221,10 @@ export function RangeResolverDashboard({
         </div>
 
         {/* 100% Target Percentage Rule Status Bar */}
-        <div className="mt-5 pt-4 border-t border-slate-800 flex items-center justify-between gap-3 text-xs">
+        <div className="mt-5 pt-4 border-t border-gray-800 flex items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
             <Scale className="h-4 w-4 text-blue-400" />
-            <span className="font-semibold text-slate-300">
+            <span className="font-semibold text-gray-300">
               Hedef Yüzde Toplamı:
             </span>
             <span
@@ -254,37 +250,38 @@ export function RangeResolverDashboard({
         </div>
       </Card>
 
-      {/* Dynamic Category Builder */}
-      <Card className="rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
+      {/* Dynamic GİB Category ComboBox & Inputs */}
+      <Card>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
           <div>
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Sliders className="h-4 w-4 text-blue-500" />
-              Dinamik Fatura KDV Kategorileri
+            <CardTitle className="text-xl font-semibold tracking-tight text-gray-900 flex items-center gap-2">
+              <Sliders className="h-4 w-4 text-[#0066CC]" />
+              Resmi GİB KDV Kategorileri & Toleranslar
             </CardTitle>
             <CardDescription>
-              Bu fatura için serbest min-max fiyat ve hedef yüzdeleri tanımlayın
+              Aşağıdan resmi GİB kategorisi arayıp ekleyin ve min-max aralıklarını belirleyin
             </CardDescription>
           </div>
-          <Button
-            onClick={handleAddCategory}
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs rounded-xl"
-          >
-            <Plus className="h-3.5 w-3.5" /> Kategori Ekle
-          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* GİB Search ComboBox */}
+          <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200">
+            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Resmi GİB Kategorisi Ekle
+            </p>
+            <GibCategoryComboBox onSelectCategory={handleAddGibCategory} />
+          </div>
+
+          {/* Category Input Rows */}
           {categories.map((cat, idx) => (
             <div
               key={cat.id}
-              className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-white/5 space-y-3"
+              className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-3 row-micro"
             >
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
                 {/* Category Name */}
                 <div className="sm:col-span-4">
-                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">
                     Kategori Adı #{idx + 1}
                   </label>
                   <input
@@ -293,14 +290,14 @@ export function RangeResolverDashboard({
                     onChange={(e) =>
                       handleCategoryChange(cat.id, "name", e.target.value)
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-semibold text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
                   />
                 </div>
 
                 {/* Min Price */}
                 <div className="sm:col-span-2">
-                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                    Min Price (₺)
+                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">
+                    Min (₺)
                   </label>
                   <input
                     type="number"
@@ -312,14 +309,14 @@ export function RangeResolverDashboard({
                         Number(e.target.value)
                       )
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-mono text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
                   />
                 </div>
 
                 {/* Max Price */}
                 <div className="sm:col-span-2">
-                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                    Max Price (₺)
+                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">
+                    Max (₺)
                   </label>
                   <input
                     type="number"
@@ -331,13 +328,13 @@ export function RangeResolverDashboard({
                         Number(e.target.value)
                       )
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-mono text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
                   />
                 </div>
 
                 {/* Target % */}
                 <div className="sm:col-span-2">
-                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">
                     Hedef (%)
                   </label>
                   <input
@@ -350,13 +347,13 @@ export function RangeResolverDashboard({
                         Number(e.target.value)
                       )
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold text-blue-600 dark:text-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-mono font-bold text-[#0066CC] focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
                   />
                 </div>
 
                 {/* VAT Rate */}
                 <div className="sm:col-span-1">
-                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">
                     KDV
                   </label>
                   <select
@@ -368,9 +365,9 @@ export function RangeResolverDashboard({
                         Number(e.target.value)
                       )
                     }
-                    className="w-full px-2 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-2 py-2 rounded-lg bg-white border border-gray-200 text-xs font-semibold text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
                   >
-                    <option value={8}>%8</option>
+                    <option value={1}>%1</option>
                     <option value={10}>%10</option>
                     <option value={20}>%20</option>
                   </select>
@@ -381,7 +378,7 @@ export function RangeResolverDashboard({
                   <button
                     onClick={() => handleRemoveCategory(cat.id)}
                     disabled={categories.length <= 1}
-                    className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-30 transition-colors"
+                    className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 transition-colors cursor-pointer"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -395,18 +392,18 @@ export function RangeResolverDashboard({
             <Button
               onClick={handleRunRangeResolver}
               disabled={isProcessing || !isValidPercentSum || !selectedOrder}
-              variant="apple"
+              variant="default"
               size="lg"
-              className="w-full gap-2 shadow-blue-500/25 shadow-xl font-bold py-4 text-base"
+              className="w-full gap-2 font-semibold py-3.5 text-sm"
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Exact-Match Algoritması Çalışıyor...
                 </>
               ) : (
                 <>
-                  <Play className="h-5 w-5 fill-current" />
+                  <Play className="h-4 w-4 fill-current" />
                   Exact-Match Dengelemeyi Çalıştır ve Dopigo&apos;ya İlet
                 </>
               )}
@@ -417,10 +414,10 @@ export function RangeResolverDashboard({
 
       {/* Generated Invoice Result Breakdown */}
       {calculationResult && (
-        <Card className="rounded-3xl border border-emerald-500/30 bg-emerald-950/10 dark:bg-emerald-950/20 shadow-md p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-emerald-500/20 pb-4">
-            <div className="flex items-center gap-2 text-emerald-400 font-bold">
-              <CheckCircle2 className="h-5 w-5" />
+        <Card className="border-emerald-200 bg-emerald-50/50 p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-emerald-200 pb-3">
+            <div className="flex items-center gap-2 text-emerald-800 font-semibold text-sm">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
               <span>Matematiksel Eşleşme Başarıyla Tamamlandı</span>
             </div>
             <Badge variant="success" className="font-mono">
@@ -430,7 +427,7 @@ export function RangeResolverDashboard({
 
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
-              <thead className="uppercase text-slate-400 bg-slate-900/50 rounded-xl">
+              <thead className="uppercase text-gray-600 bg-emerald-100/60 rounded-lg">
                 <tr>
                   <th className="p-3">Kategori</th>
                   <th className="p-3">Adet</th>
@@ -441,45 +438,24 @@ export function RangeResolverDashboard({
                   <th className="p-3 text-right">KDV Dahil Toplam</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800 font-mono">
+              <tbody className="divide-y divide-emerald-100 font-mono">
                 {calculationResult.lines.map((line) => (
-                  <tr key={line.id}>
-                    <td className="p-3 font-sans font-medium text-slate-200">
+                  <tr key={line.id} className="hover:bg-emerald-100/40">
+                    <td className="p-3 font-sans font-medium text-gray-900">
                       {line.categoryName}
                     </td>
-                    <td className="p-3 text-slate-300">{line.quantity}</td>
-                    <td className="p-3 text-slate-300">₺{line.unitPrice.toFixed(2)}</td>
-                    <td className="p-3 text-slate-300">₺{line.subtotal.toFixed(2)}</td>
-                    <td className="p-3 text-blue-400">%{line.vatRate}</td>
-                    <td className="p-3 text-emerald-400">₺{line.vatAmount.toFixed(2)}</td>
-                    <td className="p-3 text-right font-bold text-slate-100">
+                    <td className="p-3 text-gray-700">{line.quantity}</td>
+                    <td className="p-3 text-gray-700">₺{line.unitPrice.toFixed(2)}</td>
+                    <td className="p-3 text-gray-700">₺{line.subtotal.toFixed(2)}</td>
+                    <td className="p-3 text-blue-700">%{line.vatRate}</td>
+                    <td className="p-3 text-emerald-700">₺{line.vatAmount.toFixed(2)}</td>
+                    <td className="p-3 text-right font-bold text-gray-900">
                       ₺{line.totalWithVat.toFixed(2)}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-
-          <div className="pt-3 border-t border-emerald-500/20 flex flex-col sm:flex-row justify-between text-xs text-slate-300">
-            <div>
-              Orijinal Sipariş Tutarı:{" "}
-              <span className="font-bold font-mono text-emerald-400">
-                ₺{calculationResult.totalOriginalAmount.toFixed(2)}
-              </span>
-            </div>
-            <div>
-              Hesaplanan Toplam KDV:{" "}
-              <span className="font-bold font-mono text-emerald-400">
-                ₺{calculationResult.totalVatAmount.toFixed(2)}
-              </span>
-            </div>
-            <div>
-              Kuruş Hassasiyet Farkı (Delta):{" "}
-              <span className="font-bold font-mono text-blue-400">
-                ₺{calculationResult.remainderDelta.toFixed(2)}
-              </span>
-            </div>
           </div>
         </Card>
       )}
