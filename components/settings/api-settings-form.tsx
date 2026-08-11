@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Key,
   ShieldCheck,
   Eye,
   EyeOff,
@@ -12,7 +11,6 @@ import {
   Database,
   Send,
   Lock,
-  Sparkles,
 } from "lucide-react";
 import {
   Card,
@@ -68,18 +66,18 @@ export function ApiSettingsForm() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-900/90 via-indigo-950/80 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-xl border border-white/10 relative overflow-hidden backdrop-blur-2xl">
-        <div className="absolute right-0 top-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#2c2c2e]/70 backdrop-blur-3xl p-6 sm:p-8 rounded-3xl text-white shadow-2xl border border-white/10 relative overflow-hidden">
+        <div className="absolute right-0 top-0 w-80 h-80 bg-[#0A84FF]/10 rounded-full blur-3xl pointer-events-none" />
         <div className="space-y-1.5 relative z-10">
           <div className="flex items-center gap-2">
-            <Badge variant="default" className="bg-blue-500/20 text-blue-300 border-blue-400/30 gap-1.5">
+            <Badge variant="default" className="bg-[#0A84FF]/20 text-[#0A84FF] border-[#0A84FF]/30 gap-1.5">
               <Lock className="h-3 w-3" /> Güvenli Entegrasyon
             </Badge>
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-white">
             API Bağlantı Ayarları
           </h2>
-          <p className="text-slate-300 text-sm max-w-lg leading-relaxed">
+          <p className="text-zinc-400 text-xs sm:text-sm max-w-lg leading-relaxed font-medium">
             IdeaSoft ve Dopigo servislerine kapalı devre erişim sağlayan API kimlik doğrulamalarını buradan yönetin.
           </p>
         </div>
@@ -87,16 +85,16 @@ export function ApiSettingsForm() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* IdeaSoft API Credentials Card */}
-        <Card className="rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm overflow-hidden">
-          <CardHeader className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
+        <Card className="rounded-3xl border border-white/10 bg-[#2c2c2e]/60 backdrop-blur-2xl shadow-2xl overflow-hidden">
+          <CardHeader className="border-b border-white/10 bg-white/5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
-                  <Database className="h-6 w-6" />
+                <div className="p-3 rounded-2xl bg-[#0A84FF]/15 text-[#0A84FF] border border-[#0A84FF]/30">
+                  <Database className="h-5 w-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">IdeaSoft API Kimlik Bilgileri</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-base text-white">IdeaSoft API Kimlik Bilgileri</CardTitle>
+                  <CardDescription className="text-zinc-400 text-xs">
                     IdeaSoft sipariş API&apos;sine erişim için gerekli OAuth token anahtarları
                   </CardDescription>
                 </div>
@@ -109,7 +107,7 @@ export function ApiSettingsForm() {
           <CardContent className="space-y-5 pt-6">
             {/* Client ID Field */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider block">
                 IdeaSoft Client ID
               </label>
               <div className="relative">
@@ -119,17 +117,14 @@ export function ApiSettingsForm() {
                   onChange={(e) => setClientId(e.target.value)}
                   placeholder="ideasoft_live_..."
                   required
-                  className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 text-sm font-mono transition-all"
+                  className="w-full px-4 py-3 rounded-2xl bg-black/40 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]/50 focus:border-[#0A84FF] text-xs font-mono transition-all"
                 />
               </div>
-              <p className="text-[11px] text-slate-400">
-                IdeaSoft Yönetim Paneli ➔ Uygulama Mağazası üzerinden edindiğiniz Client ID.
-              </p>
             </div>
 
             {/* Client Secret Field */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider block">
                 IdeaSoft Client Secret
               </label>
               <div className="relative">
@@ -139,12 +134,12 @@ export function ApiSettingsForm() {
                   onChange={(e) => setClientSecret(e.target.value)}
                   placeholder="sec_live_..."
                   required
-                  className="w-full pl-4 pr-12 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 text-sm font-mono transition-all"
+                  className="w-full pl-4 pr-12 py-3 rounded-2xl bg-black/40 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]/50 focus:border-[#0A84FF] text-xs font-mono transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowSecret(!showSecret)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-1.5 transition-colors"
                 >
                   {showSecret ? (
                     <EyeOff className="h-4 w-4" />
@@ -153,25 +148,22 @@ export function ApiSettingsForm() {
                   )}
                 </button>
               </div>
-              <p className="text-[11px] text-slate-400">
-                Gizli tutulmalıdır. Sunucu taraflı kapalı devre haberleşmede kullanılır.
-              </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Dopigo API Token Card */}
-        <Card className="rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm overflow-hidden">
-          <CardHeader className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
+        <Card className="rounded-3xl border border-white/10 bg-[#2c2c2e]/60 backdrop-blur-2xl shadow-2xl overflow-hidden">
+          <CardHeader className="border-b border-white/10 bg-white/5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400">
-                  <Send className="h-6 w-6" />
+                <div className="p-3 rounded-2xl bg-[#BF5AF2]/15 text-[#BF5AF2] border border-[#BF5AF2]/30">
+                  <Send className="h-5 w-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Dopigo API Yapılandırması</CardTitle>
-                  <CardDescription>
-                    Faturaların Dopigo entegratörüne otomatik aktarımı için yetkilendirme anahtarı
+                  <CardTitle className="text-base text-white">Dopigo API Yapılandırması</CardTitle>
+                  <CardDescription className="text-zinc-400 text-xs">
+                    Faturaların Dopigo entegratörüne aktarımı için yetkilendirme anahtarı
                   </CardDescription>
                 </div>
               </div>
@@ -181,9 +173,8 @@ export function ApiSettingsForm() {
             </div>
           </CardHeader>
           <CardContent className="space-y-5 pt-6">
-            {/* Dopigo Token Field */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider block">
                 Dopigo API Token
               </label>
               <div className="relative">
@@ -193,12 +184,12 @@ export function ApiSettingsForm() {
                   onChange={(e) => setDopigoToken(e.target.value)}
                   placeholder="dop_live_..."
                   required
-                  className="w-full pl-4 pr-12 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 text-sm font-mono transition-all"
+                  className="w-full pl-4 pr-12 py-3 rounded-2xl bg-black/40 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]/50 focus:border-[#0A84FF] text-xs font-mono transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowToken(!showToken)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-1.5 transition-colors"
                 >
                   {showToken ? (
                     <EyeOff className="h-4 w-4" />
@@ -207,14 +198,11 @@ export function ApiSettingsForm() {
                   )}
                 </button>
               </div>
-              <p className="text-[11px] text-slate-400">
-                Dopigo Hesabım ➔ API Erişimi sekmesinden alınan sabit Bearer token.
-              </p>
             </div>
           </CardContent>
-          <CardFooter className="bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800/80 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <ShieldCheck className="h-4 w-4 text-emerald-500" />
+          <CardFooter className="bg-white/5 border-t border-white/10 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+              <ShieldCheck className="h-4 w-4 text-[#30D158]" />
               <span>Tüm API anahtarları SSL şifreleme ile muhafaza edilir.</span>
             </div>
 
@@ -223,7 +211,7 @@ export function ApiSettingsForm() {
               disabled={isSaving}
               variant="apple"
               size="lg"
-              className="w-full sm:w-auto min-w-[160px] gap-2"
+              className="w-full sm:w-auto min-w-[160px] gap-2 font-bold"
             >
               {isSaving ? (
                 <>
@@ -241,7 +229,6 @@ export function ApiSettingsForm() {
         </Card>
       </form>
 
-      {/* Apple HIG Toast Alert */}
       {showToast && (
         <Toast
           title="Ayarlar başarıyla kaydedildi"

@@ -17,7 +17,7 @@ export function RecentOrders() {
       amount: "₺14,500.00",
       vat: "₺2,900.00 (%20)",
       status: "Dengelenmeyi Bekliyor",
-      badgeVariant: "secondary" as const,
+      badgeVariant: "warning" as const,
       time: "10 dk önce",
     },
     {
@@ -26,7 +26,7 @@ export function RecentOrders() {
       amount: "₺8,200.50",
       vat: "₺1,640.10 (%20)",
       status: "Dengelenmeyi Bekliyor",
-      badgeVariant: "secondary" as const,
+      badgeVariant: "warning" as const,
       time: "42 dk önce",
     },
     {
@@ -53,61 +53,61 @@ export function RecentOrders() {
     <Card className="col-span-full lg:col-span-2">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <div>
-          <CardTitle className="text-base font-bold flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+          <CardTitle className="text-base font-bold flex items-center gap-2 text-white">
+            <ShoppingBag className="h-4 w-4 text-[#0A84FF]" />
             IdeaSoft Son Sipariş Akışı
           </CardTitle>
           <CardDescription>
             IdeaSoft API üzerinden çekilen son siparişler ve KDV durumu
           </CardDescription>
         </div>
-        <Button variant="outline" size="sm" className="gap-1 text-xs">
+        <Button variant="outline" size="sm" className="gap-1 text-xs rounded-xl">
           Tümünü Gör
           <ArrowUpRight className="h-3.5 w-3.5" />
         </Button>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 rounded-lg">
+          <table className="w-full text-xs text-left">
+            <thead className="uppercase bg-white/5 text-zinc-400 rounded-xl">
               <tr>
-                <th className="px-4 py-3 font-semibold rounded-l-lg">Sipariş Kodu</th>
+                <th className="px-4 py-3 font-semibold rounded-l-xl">Sipariş Kodu</th>
                 <th className="px-4 py-3 font-semibold">Müşteri</th>
                 <th className="px-4 py-3 font-semibold">Tutar</th>
                 <th className="px-4 py-3 font-semibold">KDV</th>
                 <th className="px-4 py-3 font-semibold">Durum</th>
-                <th className="px-4 py-3 font-semibold text-right rounded-r-lg">Zaman</th>
+                <th className="px-4 py-3 font-semibold text-right rounded-r-xl">Zaman</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-white/5">
               {sampleOrders.map((order) => (
                 <tr
                   key={order.id}
-                  className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+                  className="hover:bg-white/5 transition-colors font-medium"
                 >
-                  <td className="px-4 py-3.5 font-mono font-medium text-indigo-600 dark:text-indigo-400">
+                  <td className="px-4 py-3.5 font-mono font-bold text-[#0A84FF]">
                     {order.id}
                   </td>
-                  <td className="px-4 py-3.5 font-medium text-slate-900 dark:text-slate-100">
+                  <td className="px-4 py-3.5 text-white font-semibold">
                     {order.customer}
                   </td>
-                  <td className="px-4 py-3.5 font-semibold text-slate-800 dark:text-slate-200">
+                  <td className="px-4 py-3.5 font-mono text-zinc-200">
                     {order.amount}
                   </td>
-                  <td className="px-4 py-3.5 text-slate-600 dark:text-slate-400">
+                  <td className="px-4 py-3.5 text-zinc-400">
                     {order.vat}
                   </td>
                   <td className="px-4 py-3.5">
-                    <Badge variant={order.badgeVariant} className="text-xs font-normal">
+                    <Badge variant={order.badgeVariant} className="text-[11px]">
                       {order.badgeVariant === "success" ? (
-                        <CheckCircle className="h-3 w-3 mr-1 text-emerald-600" />
+                        <CheckCircle className="h-3 w-3 mr-1 text-[#30D158]" />
                       ) : (
-                        <Clock className="h-3 w-3 mr-1 text-amber-500" />
+                        <Clock className="h-3 w-3 mr-1 text-[#FF9F0A]" />
                       )}
                       {order.status}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3.5 text-right text-xs text-slate-400">
+                  <td className="px-4 py-3.5 text-right text-zinc-400">
                     {order.time}
                   </td>
                 </tr>

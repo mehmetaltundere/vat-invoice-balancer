@@ -3,28 +3,30 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-2xl text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none active:scale-[0.98]",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-2xl text-xs font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0A84FF] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40 cursor-pointer select-none spring-bounce",
   {
     variants: {
       variant: {
         default:
-          "bg-blue-600 text-white shadow-md shadow-blue-500/20 hover:bg-blue-500 active:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500",
+          "bg-[#0A84FF] text-white shadow-lg shadow-[#0A84FF]/25 hover:bg-[#0077ED] active:scale-[0.97]",
         apple:
-          "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/35 hover:brightness-105",
+          "bg-[#0A84FF] text-white shadow-lg shadow-[#0A84FF]/30 hover:brightness-110 active:scale-[0.97]",
+        success:
+          "bg-[#30D158] text-black shadow-lg shadow-[#30D158]/25 hover:brightness-110 active:scale-[0.97]",
         destructive:
-          "bg-red-500 text-white shadow-sm hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-500",
+          "bg-[#FF453A] text-white shadow-sm hover:bg-[#FF3B30] active:scale-[0.97]",
         outline:
-          "border border-slate-200/80 bg-white/60 backdrop-blur-md shadow-sm hover:bg-slate-100/80 hover:text-slate-900 dark:border-white/10 dark:bg-slate-800/40 dark:hover:bg-slate-800 dark:hover:text-slate-50",
+          "border border-white/15 bg-white/5 backdrop-blur-xl text-white hover:bg-white/10 active:scale-[0.97]",
         secondary:
-          "bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:bg-slate-700",
+          "bg-white/10 text-white hover:bg-white/15 backdrop-blur-md active:scale-[0.97]",
         ghost:
-          "hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800/60 dark:hover:text-slate-50",
-        link: "text-blue-600 underline-offset-4 hover:underline dark:text-blue-400",
+          "hover:bg-white/10 text-zinc-300 hover:text-white active:scale-[0.97]",
+        link: "text-[#0A84FF] underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-11 px-5 py-2.5",
-        sm: "h-9 rounded-xl px-3.5 text-xs",
-        lg: "h-12 rounded-2xl px-8 text-base font-bold",
+        default: "h-10 px-4 py-2",
+        sm: "h-8 rounded-xl px-3 text-[11px]",
+        lg: "h-12 rounded-2xl px-6 text-sm font-bold",
         icon: "h-10 w-10 rounded-xl",
       },
     },

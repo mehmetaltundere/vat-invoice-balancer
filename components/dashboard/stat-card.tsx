@@ -19,46 +19,46 @@ export function StatCard({
   change,
   changeType = "neutral",
   icon: Icon,
-  iconColor = "text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 dark:text-indigo-400",
+  iconColor = "text-[#0A84FF] bg-[#0A84FF]/15 border border-[#0A84FF]/30",
 }: StatCardProps) {
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:border-white/20 transition-all spring-bounce">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">
+          <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
             {title}
           </p>
-          <div className={cn("p-2.5 rounded-xl border border-slate-200/50 dark:border-slate-800", iconColor)}>
-            <Icon className="h-5 w-5" />
+          <div className={cn("p-2.5 rounded-2xl", iconColor)}>
+            <Icon className="h-4 w-4" />
           </div>
         </div>
 
         <div className="mt-3">
-          <h4 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          <h4 className="text-2xl font-bold tracking-tight text-white font-mono">
             {value}
           </h4>
           {subtitle && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-zinc-400 mt-1 font-medium">
               {subtitle}
             </p>
           )}
         </div>
 
         {change && (
-          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+          <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
             <span
               className={cn(
-                "font-semibold px-2 py-0.5 rounded-md",
+                "font-bold px-2.5 py-0.5 rounded-full text-[11px]",
                 changeType === "positive"
-                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  ? "bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30"
                   : changeType === "negative"
-                  ? "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
-                  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                  ? "bg-[#FF453A]/15 text-[#FF453A] border border-[#FF453A]/30"
+                  : "bg-white/10 text-zinc-300 border border-white/15"
               )}
             >
               {change}
             </span>
-            <span className="text-slate-400 text-[11px]">Son 24 saat</span>
+            <span className="text-zinc-500 text-[10px]">Son 24 saat</span>
           </div>
         )}
       </CardContent>
