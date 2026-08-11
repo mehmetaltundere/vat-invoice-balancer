@@ -36,16 +36,16 @@ export function DashboardOverview() {
 
   return (
     <div className="space-y-8">
-      {/* Royal Blue Hero Banner with Pure White Text */}
-      <div className="p-6 rounded-2xl bg-blue-600 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Restored Original Blue Gradient Hero Banner */}
+      <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-900 via-[#0066CC] to-blue-800 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-blue-100 flex items-center gap-1.5 mb-1">
-            <Zap className="h-4 w-4 text-amber-300" /> EFA ENGINE v2.0
+          <span className="text-xs font-semibold uppercase tracking-wider text-blue-200 flex items-center gap-1.5 mb-1">
+            <Zap className="h-4 w-4 text-amber-400" /> EFA ENGINE v2.0
           </span>
           <h2 className="text-2xl font-bold tracking-tight text-white">
             EFA - EXlora Fatura Asistanı
           </h2>
-          <p className="text-xs text-blue-50 mt-1 max-w-xl leading-relaxed">
+          <p className="text-xs text-blue-100 mt-1 max-w-xl leading-relaxed">
             IdeaSoft e-ticaret siparişlerini KDV matrah sınırlarına göre dengeleyerek otomatik Dopigo e-faturasına dönüştürür.
           </p>
         </div>
