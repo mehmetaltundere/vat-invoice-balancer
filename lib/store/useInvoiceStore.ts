@@ -67,8 +67,8 @@ const defaultInvoiceCategories: CategoryInputRow[] = [
 ];
 
 export const useInvoiceStore = create<InvoiceStoreState>((set) => ({
-  orders: [],
-  selectedOrder: null,
+  orders: [], // STRICTLY EMPTY
+  selectedOrder: null, // STRICTLY NULL
   selectedOrderIds: [],
   categories: defaultInvoiceCategories,
   customVatCategories: [],
