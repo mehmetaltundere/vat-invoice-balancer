@@ -8,12 +8,13 @@ export interface ApiSettings {
   dopigoApiToken: string;
 }
 
-const STORAGE_KEY = "nexus_vat_api_settings";
+export const EFA_STORAGE_KEY = "efa_vat_api_settings";
+const LEGACY_STORAGE_KEY = "nexus_vat_api_settings";
 
 const defaultSettings: ApiSettings = {
-  ideaSoftClientId: "ideasoft_live_88492019",
-  ideaSoftClientSecret: "sec_live_99182374910238a72b",
-  dopigoApiToken: "dop_live_tok_77281920384c901",
+  ideaSoftClientId: "",
+  ideaSoftClientSecret: "",
+  dopigoApiToken: "",
 };
 
 export function useApiSettings() {
@@ -22,7 +23,9 @@ export function useApiSettings() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved =
+        localStorage.getItem(EFA_STORAGE_KEY) ||
+        localStorage.getItem(LEGACY_STORAGE_KEY);
       if (saved) {
         setSettings(JSON.parse(saved));
       }
@@ -37,14 +40,14 @@ export function useApiSettings() {
     return new Promise((resolve) => {
       setTimeout(() => {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
+          localStorage.setItem(EFA_STORAGE_KEY, JSON.stringify(newSettings));
           setSettings(newSettings);
           resolve(true);
         } catch (e) {
           console.error("Failed to save API settings", e);
           resolve(false);
         }
-      }, 750); // Simulate smooth network / saving latency
+      }, 500);
     });
   };
 

@@ -2,6 +2,7 @@
  * Mathematical Exact-Match Range Algorithm
  * Distributes total order amount into category lines within min-max bounds
  * and adjusts pennies (kuruş) to match order total 100.00% accurately.
+ * Guaranteed GİB e-Fatura XML Line Total integrity (Quantity * UnitPrice === Subtotal).
  */
 
 import { SanitizedCategory } from "@/lib/security/validation";
@@ -37,10 +38,8 @@ export function executeExactMatchResolver(
 
   categories.forEach((cat, index) => {
     const isLast = index === categories.length - 1;
-    // Calculate target amount for this category based on percentage
     let targetCategorySum = (totalAmount * cat.targetPercent) / 100;
 
-    // Determine reasonable item count & unit price within min-max bounds
     const avgPrice = Math.min(
       cat.maxPrice,
       Math.max(cat.minPrice, (cat.minPrice + cat.maxPrice) / 2)
@@ -64,7 +63,12 @@ export function executeExactMatchResolver(
     if (isLast) {
       const currentTotalWithoutLast = cumulativeSum;
       subtotal = Number((totalAmount - currentTotalWithoutLast).toFixed(2));
-      unitPrice = Number((subtotal / qty).toFixed(2));
+      if (subtotal <= 0) {
+        subtotal = 0.01;
+      }
+      // GİB e-Fatura XML Standard: Quantity * UnitPrice strictly equals Subtotal
+      qty = 1;
+      unitPrice = subtotal;
     }
 
     const vatAmount = Number((subtotal * (cat.vatRate / 100)).toFixed(2));

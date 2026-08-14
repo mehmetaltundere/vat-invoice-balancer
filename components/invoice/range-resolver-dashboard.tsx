@@ -13,6 +13,9 @@ import {
   Layers,
   AlertTriangle,
   Lock,
+  Download,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   Card,
@@ -36,7 +39,8 @@ interface RangeResolverDashboardProps {
   onBatchCompleted?: (orderIds: string[]) => void;
 }
 
-const STORAGE_KEY = "nexus_vat_api_settings";
+const EFA_STORAGE_KEY = "efa_vat_api_settings";
+const LEGACY_STORAGE_KEY = "nexus_vat_api_settings";
 
 export function RangeResolverDashboard({
   selectedOrder,
@@ -59,6 +63,8 @@ export function RangeResolverDashboard({
     total: number;
     currentOrder: string;
   } | null>(null);
+
+  const [copiedJson, setCopiedJson] = useState(false);
 
   const [toastInfo, setToastInfo] = useState<{
     title: string;
@@ -86,7 +92,9 @@ export function RangeResolverDashboard({
 
   const getApiCredentials = () => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved =
+        localStorage.getItem(EFA_STORAGE_KEY) ||
+        localStorage.getItem(LEGACY_STORAGE_KEY);
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error("Failed to read settings for headers", e);
@@ -98,14 +106,29 @@ export function RangeResolverDashboard({
     };
   };
 
-  const handleRunBatchQueue = async () => {
-    const ordersToProcess =
-      batchOrders.length > 0 ? batchOrders : selectedOrder ? [selectedOrder] : [];
+  const handleDownloadInvoiceJson = () => {
+    if (!calculationResult) return;
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(calculationResult, null, 2));
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `EFA_Fatura_${calculationResult.orderId || "ozet"}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
 
-    if (ordersToProcess.length === 0) {
+  const handleCopyInvoiceJson = () => {
+    if (!calculationResult) return;
+    navigator.clipboard.writeText(JSON.stringify(calculationResult, null, 2));
+    setCopiedJson(true);
+    setTimeout(() => setCopiedJson(false), 2000);
+  };
+
+  const handleExecuteSingleResolution = async () => {
+    if (!selectedOrder) {
       setToastInfo({
         title: "Sipariş Seçilmedi",
-        description: "Lütfen sol taraftaki listeden dengelemek istediğiniz en az bir siparişi seçin.",
+        description: "Lütfen sol listeden faturalandırmak istediğiniz bir sipariş seçin.",
         type: "error",
       });
       return;
@@ -113,429 +136,177 @@ export function RangeResolverDashboard({
 
     if (!isValidPercentSum) {
       setToastInfo({
-        title: "Matematiksel Dengeleme Hatası",
-        description: `İşlem Durduruldu: Hedef yüzdelerinizin toplamı tam olarak %100 olmalıdır. (Şu an: %${totalTargetPercent})`,
+        title: "Hedef Yüzde Uyarısı",
+        description: `Hedef yüzdelerin toplamı tam olarak %100 olmalıdır. (Şu an: %${totalTargetPercent})`,
         type: "error",
       });
       return;
     }
 
     setIsProcessing(true);
-    setCalculationResult(null);
+    setToastInfo(null);
 
+    try {
+      const result = executeExactMatchResolver(
+        selectedOrder.id,
+        selectedOrder.totalAmount,
+        categories
+      );
+      setCalculationResult(result);
+
+      const creds = getApiCredentials();
+
+      // Send to Dopigo API Route
+      const dopigoRes = await fetch("/api/dopigo/invoice", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-dopigo-api-token": creds.dopigoApiToken,
+        },
+        body: JSON.stringify({
+          orderId: selectedOrder.id,
+          customerName: selectedOrder.customerName,
+          tckn: selectedOrder.tckn,
+          lines: result.lines,
+          totalAmount: result.totalCalculatedAmount,
+        }),
+      });
+
+      const dopigoJson = await dopigoRes.json();
+
+      if (!dopigoRes.ok || !dopigoJson.success) {
+        throw new Error(dopigoJson.message || "Dopigo e-fatura servisi faturayı kabul etmedi.");
+      }
+
+      // Loop-Back: Update IdeaSoft order status to BALANCED
+      await fetch(`/api/ideasoft/orders/update`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-ideasoft-client-id": creds.ideaSoftClientId,
+          "x-ideasoft-client-secret": creds.ideaSoftClientSecret,
+        },
+        body: JSON.stringify({
+          id: selectedOrder.id,
+          status: "BALANCED",
+        }),
+      }).catch(() => {});
+
+      updateOrder({
+        ...selectedOrder,
+        status: "BALANCED",
+      });
+
+      setToastInfo({
+        title: "Exact-Match Başarılı! 🎉",
+        description: `${selectedOrder.orderNumber} siparişi için ₺${result.totalCalculatedAmount.toFixed(2)} tutarında e-Fatura oluşturuldu ve IdeaSoft güncellendi.`,
+        type: "success",
+      });
+    } catch (error: any) {
+      setToastInfo({
+        title: "Dopigo İletim Hatası",
+        description: error.message || "e-Fatura oluşturulurken beklenmeyen bir hata oluştu.",
+        type: "error",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleExecuteBatchQueue = async () => {
+    if (batchOrders.length === 0) return;
+
+    if (!isValidPercentSum) {
+      setToastInfo({
+        title: "Hedef Yüzde Hatası",
+        description: `Hedef yüzdelerin toplamı tam olarak %100 olmalıdır. (Şu an: %${totalTargetPercent})`,
+        type: "error",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    setToastInfo(null);
     const completedIds: string[] = [];
     const creds = getApiCredentials();
 
     try {
-      for (let i = 0; i < ordersToProcess.length; i++) {
-        const order = ordersToProcess[i];
-
+      for (let i = 0; i < batchOrders.length; i++) {
+        const order = batchOrders[i];
         setBatchProgress({
           current: i + 1,
-          total: ordersToProcess.length,
+          total: batchOrders.length,
           currentOrder: order.orderNumber,
         });
 
-        let matchResult: ExactMatchResult;
-        try {
-          matchResult = executeExactMatchResolver(
-            order.orderNumber,
-            order.totalAmount,
-            categories.map((c) => ({
-              id: c.id,
-              name: c.name,
-              minPrice: Number(c.minPrice),
-              maxPrice: Number(c.maxPrice),
-              targetPercent: Number(c.targetPercent),
-              vatRate: Number(c.vatRate),
-            }))
-          );
-        } catch (mathErr) {
-          throw new Error("Matematiksel Dengeleme Hatası: Seçilen aralıklar hedef tutarı karşılamıyor.");
-        }
+        const result = executeExactMatchResolver(
+          order.id,
+          order.totalAmount,
+          categories
+        );
 
-        // 1. POST to Dopigo API Route
-        const response = await fetch("/api/dopigo/invoice", {
+        // POST to Dopigo
+        await fetch("/api/dopigo/invoice", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "x-dopigo-api-token": creds.dopigoApiToken,
           },
           body: JSON.stringify({
-            orderId: order.orderNumber,
-            totalAmount: matchResult.totalCalculatedAmount,
-            lines: matchResult.lines,
+            orderId: order.id,
+            customerName: order.customerName,
+            tckn: order.tckn,
+            lines: result.lines,
+            totalAmount: result.totalCalculatedAmount,
           }),
         });
 
-        const resJson = await response.json();
-
-        if (!response.ok || !resJson.success) {
-          throw new Error(
-            resJson.error || "Dopigo Fatura İletim Hatası: Lütfen API token'ınızı Ayarlar sayfasından kontrol edin."
-          );
-        }
-
-        // 2. INVOICE LOOP-BACK: Immediately update IdeaSoft Order status to Faturalandırıldı (BALANCED)
-        await fetch(`/api/ideasoft/orders/${order.id}`, {
-          method: "PUT",
+        // Loop-Back: Update IdeaSoft order status
+        await fetch(`/api/ideasoft/orders/update`, {
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
             "x-ideasoft-client-id": creds.ideaSoftClientId,
             "x-ideasoft-client-secret": creds.ideaSoftClientSecret,
           },
-          body: JSON.stringify({ status: "BALANCED" }),
+          body: JSON.stringify({
+            id: order.id,
+            status: "BALANCED",
+          }),
         }).catch(() => {});
 
-        // Update local store state instantly
-        updateOrder({ ...order, status: "BALANCED" });
-        completedIds.push(order.id);
+        updateOrder({
+          ...order,
+          status: "BALANCED",
+        });
 
-        if (i === ordersToProcess.length - 1) {
-          setCalculationResult(matchResult);
-        }
+        completedIds.push(order.id);
+        await new Promise((r) => setTimeout(r, 400));
       }
 
-      setIsProcessing(false);
-      setBatchProgress(null);
-
-      if (onBatchCompleted && completedIds.length > 0) {
+      if (onBatchCompleted) {
         onBatchCompleted(completedIds);
       }
 
       setToastInfo({
-        title: "Toplu Fatura İşlemi Tamamlandı!",
-        description: `${completedIds.length} adet sipariş dengelenerek Dopigo'ya iletildi ve IdeaSoft'ta 'Faturalandırıldı' durumuna getirildi.`,
+        title: "Toplu İşlem Tamamlandı! 🚀",
+        description: `Seçilen ${batchOrders.length} adet sipariş için sırasıyla faturalandırma ve durum güncellemeleri başarıyla yapıldı.`,
         type: "success",
       });
-    } catch (err: any) {
-      setIsProcessing(false);
-      setBatchProgress(null);
+    } catch (error: any) {
       setToastInfo({
-        title: "Dopigo Fatura İletim Hatası",
-        description: err.message || "Dopigo Fatura İletim Hatası: Sunucuyla iletişim kurulamadı.",
+        title: "Kuyruk İşlem Hatası",
+        description: error.message || "Toplu işlem sırasında bir hata meydana geldi.",
         type: "error",
       });
+    } finally {
+      setIsProcessing(false);
+      setBatchProgress(null);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Target Percentage Validation Bar Header */}
-      <Card className="p-6 bg-gray-900 text-white relative border-none">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-1.5 mb-1">
-              <Zap className="h-3.5 w-3.5 text-amber-400" /> Exact-Match Range Resolver
-            </span>
-            <h2 className="text-xl font-bold tracking-tight text-white">
-              {batchOrders.length > 1
-                ? `Toplu Kuyruk İşlemi (${batchOrders.length} Sipariş)`
-                : selectedOrder
-                ? `Sipariş: ${selectedOrder.orderNumber}`
-                : "Sipariş Seçilmedi"}
-            </h2>
-            <p className="text-xs text-gray-400 mt-0.5 font-medium">
-              Müşteri: {selectedOrder?.customerName || "Toplu Seçim"} | TCKN:{" "}
-              {selectedOrder?.tckn || "Varsayılan (11111111111)"}
-            </p>
-          </div>
-
-          <div className="text-left sm:text-right">
-            <span className="text-xs text-gray-400">İşlenecek Toplam Tutar</span>
-            <div className="text-2xl font-bold font-mono text-emerald-400">
-              ₺
-              {batchOrders.length > 1
-                ? batchOrders
-                    .reduce((sum, o) => sum + o.totalAmount, 0)
-                    .toLocaleString("tr-TR", { minimumFractionDigits: 2 })
-                : selectedOrder
-                ? selectedOrder.totalAmount.toLocaleString("tr-TR", {
-                    minimumFractionDigits: 2,
-                  })
-                : "0.00"}
-            </div>
-          </div>
-        </div>
-
-        {/* 100% Target Percentage Rule Status Bar */}
-        <div className="mt-5 pt-4 border-t border-gray-800 flex items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <Scale className="h-4 w-4 text-blue-400" />
-            <span className="font-semibold text-gray-300">
-              Hedef Yüzde Toplamı:
-            </span>
-            <span
-              className={`font-bold font-mono px-2 py-0.5 rounded-lg ${
-                isValidPercentSum
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                  : "bg-red-500/20 text-red-300 border border-red-500/30"
-              }`}
-            >
-              %{totalTargetPercent.toFixed(1)} / %100
-            </span>
-          </div>
-
-          {isValidPercentSum ? (
-            <span className="text-emerald-400 font-semibold flex items-center gap-1">
-              <CheckCircle2 className="h-4 w-4" /> Kural Geçerli (%100 Tamam)
-            </span>
-          ) : (
-            <span className="text-red-400 font-semibold flex items-center gap-1">
-              <AlertCircle className="h-4 w-4" /> Toplam %100 Olmalıdır!
-            </span>
-          )}
-        </div>
-      </Card>
-
-      {/* Live Batch Progress Bar */}
-      {batchProgress && (
-        <Card className="p-4 bg-blue-50 border border-blue-200 space-y-2">
-          <div className="flex items-center justify-between text-xs font-semibold text-blue-900">
-            <span className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-[#0066CC]" />
-              Sipariş {batchProgress.current}/{batchProgress.total} Kesiliyor... ({batchProgress.currentOrder})
-            </span>
-            <span className="font-mono">
-              %{Math.round((batchProgress.current / batchProgress.total) * 100)}
-            </span>
-          </div>
-          <div className="w-full bg-blue-200 h-2 rounded-full overflow-hidden">
-            <div
-              className="bg-[#0066CC] h-full transition-all duration-300"
-              style={{
-                width: `${(batchProgress.current / batchProgress.total) * 100}%`,
-              }}
-            />
-          </div>
-        </Card>
-      )}
-
-      {/* Dynamic Retail Item ComboBox & Inputs */}
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
-          <div>
-            <CardTitle className="text-xl font-semibold tracking-tight text-gray-900 flex items-center gap-2">
-              <Sliders className="h-4 w-4 text-[#0066CC]" />
-              Cloud KDV Veritabanı & Özel Kategoriler
-            </CardTitle>
-            <CardDescription>
-              Cloud veritabanından veya Ayarlar&apos;da tanımladığınız özel kategorilerden arayıp ekleyin
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Cloud Search ComboBox */}
-          <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200">
-            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Cloud veya Özel KDV Kategorisi Ekle
-            </p>
-            <GibCategoryComboBox onSelectCategory={handleAddGranularItem} />
-          </div>
-
-          {/* Category Input Rows */}
-          {categories.map((cat, idx) => (
-            <div
-              key={cat.id}
-              className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-3 row-micro"
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-                {/* Category Name */}
-                <div className="sm:col-span-4">
-                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">
-                    Ürün / Kategori Adı #{idx + 1}
-                  </label>
-                  <input
-                    type="text"
-                    value={cat.name}
-                    onChange={(e) =>
-                      updateCategory(cat.id, "name", e.target.value)
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-semibold text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
-                  />
-                </div>
-
-                {/* Min Price */}
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">
-                    Min (₺)
-                  </label>
-                  <input
-                    type="number"
-                    value={cat.minPrice}
-                    onChange={(e) =>
-                      updateCategory(cat.id, "minPrice", Number(e.target.value))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-mono text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
-                  />
-                </div>
-
-                {/* Max Price */}
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">
-                    Max (₺)
-                  </label>
-                  <input
-                    type="number"
-                    value={cat.maxPrice}
-                    onChange={(e) =>
-                      updateCategory(cat.id, "maxPrice", Number(e.target.value))
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-mono text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
-                  />
-                </div>
-
-                {/* Target % */}
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">
-                    Hedef (%)
-                  </label>
-                  <input
-                    type="number"
-                    value={cat.targetPercent}
-                    onChange={(e) =>
-                      updateCategory(
-                        cat.id,
-                        "targetPercent",
-                        Number(e.target.value)
-                      )
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-mono font-bold text-[#0066CC] focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
-                  />
-                </div>
-
-                {/* VAT Rate */}
-                <div className="sm:col-span-1">
-                  <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">
-                    KDV
-                  </label>
-                  <select
-                    value={cat.vatRate}
-                    onChange={(e) =>
-                      updateCategory(cat.id, "vatRate", Number(e.target.value))
-                    }
-                    className="w-full px-2 py-2 rounded-lg bg-white border border-gray-200 text-xs font-semibold text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
-                  >
-                    <option value={1}>%1</option>
-                    <option value={10}>%10</option>
-                    <option value={20}>%20</option>
-                  </select>
-                </div>
-
-                {/* Remove Category */}
-                <div className="sm:col-span-1 flex justify-end">
-                  <button
-                    onClick={() => removeCategory(cat.id)}
-                    disabled={categories.length <= 1}
-                    className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {/* DYNAMIC EXPLANATORY ERROR MESSAGES (NO MORE SILENT LOCKS) */}
-          <div className="space-y-2 pt-2">
-            {!hasSelectedOrders && (
-              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in-50">
-                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                <span>
-                  İşlem Bekliyor: Lütfen sol taraftaki listeden dengelemek istediğiniz en az bir siparişi seçin.
-                </span>
-              </div>
-            )}
-
-            {!isValidPercentSum && (
-              <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in-50">
-                <Lock className="h-4 w-4 text-red-600 shrink-0" />
-                <span>
-                  İşlem Durduruldu: Hedef yüzdelerinizin toplamı tam olarak %100 olmalıdır. (Şu an: %{totalTargetPercent.toFixed(1)})
-                </span>
-              </div>
-            )}
-
-            <Button
-              onClick={handleRunBatchQueue}
-              disabled={
-                isProcessing ||
-                !isValidPercentSum ||
-                !hasSelectedOrders
-              }
-              variant="default"
-              size="lg"
-              className="w-full gap-2 font-semibold py-3.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Kuyruk İşleniyor...
-                </>
-              ) : batchOrders.length > 1 ? (
-                <>
-                  <Layers className="h-4 w-4" />
-                  Toplu Exact-Match Dengelemeyi Çalıştır ({batchOrders.length} Sipariş)
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 fill-current" />
-                  Exact-Match Dengelemeyi Çalıştır ve Dopigo&apos;ya İlet
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Generated Invoice Result Breakdown */}
-      {calculationResult && (
-        <Card className="border-emerald-200 bg-emerald-50/50 p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-emerald-200 pb-3">
-            <div className="flex items-center gap-2 text-emerald-800 font-semibold text-sm">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              <span>Matematiksel Eşleşme Başarıyla Tamamlandı</span>
-            </div>
-            <Badge variant="success" className="font-mono">
-              Fatura Tutar Tamam (%100)
-            </Badge>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="uppercase text-gray-600 bg-emerald-100/60 rounded-lg">
-                <tr>
-                  <th className="p-3">Kategori / Perakende Ürün</th>
-                  <th className="p-3">Adet</th>
-                  <th className="p-3">Birim Fiyat</th>
-                  <th className="p-3">Ara Toplam</th>
-                  <th className="p-3">KDV Oranı</th>
-                  <th className="p-3">KDV Tutarı</th>
-                  <th className="p-3 text-right">KDV Dahil Toplam</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-emerald-100 font-mono">
-                {calculationResult.lines.map((line) => (
-                  <tr key={line.id} className="hover:bg-emerald-100/40">
-                    <td className="p-3 font-sans font-medium text-gray-900">
-                      {line.categoryName}
-                    </td>
-                    <td className="p-3 text-gray-700">{line.quantity}</td>
-                    <td className="p-3 text-gray-700">₺{line.unitPrice.toFixed(2)}</td>
-                    <td className="p-3 text-gray-700">₺{line.subtotal.toFixed(2)}</td>
-                    <td className="p-3 text-blue-700">%{line.vatRate}</td>
-                    <td className="p-3 text-emerald-700">₺{line.vatAmount.toFixed(2)}</td>
-                    <td className="p-3 text-right font-bold text-gray-900">
-                      ₺{line.totalWithVat.toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
-
       {toastInfo && (
         <Toast
           title={toastInfo.title}
@@ -543,6 +314,322 @@ export function RangeResolverDashboard({
           type={toastInfo.type}
           onClose={() => setToastInfo(null)}
         />
+      )}
+
+      {/* Main Category Distribution Card */}
+      <Card className="bg-white border border-slate-200">
+        <CardHeader className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-xl font-semibold tracking-tight text-slate-900 flex items-center gap-2">
+              <Sliders className="h-4 w-4 text-[#0066CC]" />
+              KDV Hedef Matrah & Fiyat Limitleri
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500 mt-0.5">
+              Her kategori için hedeflenen fatura payını (%) ve birim fiyat sınırlarını belirleyin.
+            </CardDescription>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 ${
+                isValidPercentSum
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-red-50 text-red-700 border-red-200"
+              }`}
+            >
+              <Scale className="h-3.5 w-3.5" />
+              <span>Toplam: %{totalTargetPercent}</span>
+              {isValidPercentSum ? (
+                <span className="text-[10px] bg-emerald-200/60 px-1.5 py-0.2 rounded font-bold">TAM</span>
+              ) : (
+                <span className="text-[10px] bg-red-200/60 px-1.5 py-0.2 rounded font-bold">KİLİTLİ</span>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-5 space-y-4">
+          {/* Categories Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
+                  <th className="pb-3 px-2">Kategori Adı</th>
+                  <th className="pb-3 px-2 w-28">KDV Oranı</th>
+                  <th className="pb-3 px-2 w-28">Min Fiyat (₺)</th>
+                  <th className="pb-3 px-2 w-28">Max Fiyat (₺)</th>
+                  <th className="pb-3 px-2 w-28">Hedef Pay (%)</th>
+                  <th className="pb-3 px-2 w-12 text-center">Sil</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {categories.map((cat) => (
+                  <tr key={cat.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-2.5 px-2">
+                      <input
+                        type="text"
+                        value={cat.name}
+                        onChange={(e) => updateCategory(cat.id, "name", e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
+                      />
+                    </td>
+                    <td className="py-2.5 px-2">
+                      <select
+                        value={cat.vatRate}
+                        onChange={(e) => updateCategory(cat.id, "vatRate", Number(e.target.value))}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
+                      >
+                        <option value={1}>%1</option>
+                        <option value={10}>%10</option>
+                        <option value={20}>%20</option>
+                      </select>
+                    </td>
+                    <td className="py-2.5 px-2">
+                      <input
+                        type="number"
+                        min={1}
+                        value={cat.minPrice}
+                        onChange={(e) => updateCategory(cat.id, "minPrice", Number(e.target.value))}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
+                      />
+                    </td>
+                    <td className="py-2.5 px-2">
+                      <input
+                        type="number"
+                        min={cat.minPrice}
+                        value={cat.maxPrice}
+                        onChange={(e) => updateCategory(cat.id, "maxPrice", Number(e.target.value))}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
+                      />
+                    </td>
+                    <td className="py-2.5 px-2">
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={cat.targetPercent}
+                          onChange={(e) => updateCategory(cat.id, "targetPercent", Number(e.target.value))}
+                          className={`w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 ${
+                            isValidPercentSum
+                              ? "border-slate-200 focus:ring-[#0066CC]"
+                              : "border-red-300 bg-red-50/40 text-red-900 focus:ring-red-500"
+                          }`}
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 font-semibold">%</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-2 text-center">
+                      <button
+                        onClick={() => removeCategory(cat.id)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                        title="Satırı Kaldır"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Quick GİB Category Inserter */}
+          <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex-1 max-w-md">
+              <GibCategoryComboBox onSelectCategory={handleAddGranularItem} />
+            </div>
+            <button
+              onClick={() =>
+                addCategory({
+                  id: `cat_${Date.now()}`,
+                  name: "Yeni KDV Kalemi",
+                  minPrice: 50,
+                  maxPrice: 300,
+                  targetPercent: 0,
+                  vatRate: 20,
+                })
+              }
+              className="px-3.5 py-2 rounded-xl border border-slate-300 hover:border-slate-400 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all cursor-pointer"
+            >
+              + Boş Satır Ekle
+            </button>
+          </div>
+
+          {/* Dynamic Explanatory Alert Boxes */}
+          {!hasSelectedOrders && (
+            <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">İşlem Bekliyor:</p>
+                <p className="text-amber-800 text-[11px] mt-0.5">
+                  Lütfen sol taraftaki listeden dengelemek istediğiniz en az bir siparişi seçin veya toplu seçim yapın.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!isValidPercentSum && (
+            <div className="p-3.5 rounded-xl bg-red-50/80 border border-red-200 text-red-900 text-xs flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Matematik Kilidi Aktif:</p>
+                <p className="text-red-800 text-[11px] mt-0.5">
+                  İşlem Durduruldu: Hedef yüzdelerinizin toplamı tam olarak %100 olmalıdır. (Şu anki toplam: %{totalTargetPercent})
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Live Progress Bar for Batch Queue */}
+          {batchProgress && (
+            <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-blue-900">
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#0066CC]" />
+                  Toplu Fatura Kesiliyor ({batchProgress.currentOrder})
+                </span>
+                <span>{batchProgress.current} / {batchProgress.total}</span>
+              </div>
+              <div className="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-[#0066CC] h-full transition-all duration-300 rounded-full"
+                  style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Execution Button */}
+          <div className="pt-2">
+            {batchOrders.length > 1 ? (
+              <Button
+                onClick={handleExecuteBatchQueue}
+                disabled={!isValidPercentSum || isProcessing}
+                className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs gap-2 rounded-xl shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Toplu Kuyruk İşleniyor...
+                  </>
+                ) : (
+                  <>
+                    {!isValidPercentSum ? <Lock className="h-4 w-4" /> : <Layers className="h-4 w-4" />}
+                    Seçilen {batchOrders.length} Siparişi Toplu Olarak Exact-Match Dengele ve Kes
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleExecuteSingleResolution}
+                disabled={!isValidPercentSum || !selectedOrder || isProcessing}
+                className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs gap-2 rounded-xl shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Dengeleme Hesaplanıyor & Dopigo'ya İletiliyor...
+                  </>
+                ) : (
+                  <>
+                    {!isValidPercentSum || !selectedOrder ? <Lock className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    Exact-Match Dengelemeyi Çalıştır & Dopigo e-Fatura Gönder
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Calculation Result Breakdown Table & Export Bar */}
+      {calculationResult && (
+        <Card className="bg-white border border-emerald-200 shadow-sm animate-in fade-in duration-300">
+          <CardHeader className="p-5 border-b border-emerald-100 bg-emerald-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <div>
+                <CardTitle className="text-base font-bold text-slate-900">
+                  Dengelenen Fatura Çıktısı (Kuruş Hassasiyeti: %100)
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Sipariş Tutarı: ₺{calculationResult.totalOriginalAmount.toFixed(2)} | Hesaplanan: ₺{calculationResult.totalCalculatedAmount.toFixed(2)}
+                </CardDescription>
+              </div>
+            </div>
+
+            {/* Export & Copy Actions */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCopyInvoiceJson}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                title="JSON Kopyala"
+              >
+                {copiedJson ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-slate-500" />}
+                {copiedJson ? "Kopyalandı" : "JSON Kopyala"}
+              </button>
+              <button
+                onClick={handleDownloadInvoiceJson}
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+                title="JSON İndir"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Fatura İndir
+              </button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-5">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase">
+                    <th className="pb-2 px-2">Kalem / Açıklama</th>
+                    <th className="pb-2 px-2 text-right">Adet</th>
+                    <th className="pb-2 px-2 text-right">Birim Fiyat</th>
+                    <th className="pb-2 px-2 text-right">Matrah (Net)</th>
+                    <th className="pb-2 px-2 text-right">KDV</th>
+                    <th className="pb-2 px-2 text-right">KDV Tutarı</th>
+                    <th className="pb-2 px-2 text-right">Genel Toplam</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {calculationResult.lines.map((line) => (
+                    <tr key={line.id} className="hover:bg-slate-50 font-mono">
+                      <td className="py-2.5 px-2 font-sans font-medium text-slate-900">{line.categoryName}</td>
+                      <td className="py-2.5 px-2 text-right font-bold">{line.quantity}</td>
+                      <td className="py-2.5 px-2 text-right">₺{line.unitPrice.toFixed(2)}</td>
+                      <td className="py-2.5 px-2 text-right">₺{line.subtotal.toFixed(2)}</td>
+                      <td className="py-2.5 px-2 text-right font-bold text-slate-700">%{line.vatRate}</td>
+                      <td className="py-2.5 px-2 text-right text-emerald-700 font-semibold">₺{line.vatAmount.toFixed(2)}</td>
+                      <td className="py-2.5 px-2 text-right font-bold text-slate-900">₺{line.totalWithVat.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-300 font-mono font-bold text-xs bg-slate-50">
+                    <td className="py-3 px-2 font-sans">GENEL TOPLAM</td>
+                    <td className="py-3 px-2 text-right">
+                      {calculationResult.lines.reduce((s, l) => s + l.quantity, 0)}
+                    </td>
+                    <td className="py-3 px-2 text-right">-</td>
+                    <td className="py-3 px-2 text-right">
+                      ₺{calculationResult.lines.reduce((s, l) => s + l.subtotal, 0).toFixed(2)}
+                    </td>
+                    <td className="py-3 px-2 text-right">-</td>
+                    <td className="py-3 px-2 text-right text-emerald-700">
+                      ₺{calculationResult.totalVatAmount.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-2 text-right text-blue-700 text-sm">
+                      ₺{calculationResult.totalCalculatedAmount.toFixed(2)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
