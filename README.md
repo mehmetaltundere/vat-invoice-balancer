@@ -8,13 +8,12 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 [![Zustand](https://img.shields.io/badge/State-Zustand_5.0-brown?style=for-the-badge)](https://github.com/pmndrs/zustand)
 [![GİB e-Fatura](https://img.shields.io/badge/GİB_UBL--TR-100%25_Uyumlu-success?style=for-the-badge)](https://ebelge.gib.gov.tr/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
 <p align="center">
   <strong>IdeaSoft e-Ticaret ve Dopigo e-Fatura Sistemleri Arasında Akıllı KDV Dağıtım ve Dengeleme Middleware Platformu</strong>
 </p>
 
-[Özellikler](#-özellikler) • [Mimari](#-sistem-mimarisi) • [Hızlı Başlangıç](#-hızlı-başlangıç) • [API & Güvenlik](#-güvenlik-ve-api-anahtarı-mimarisi) • [Kullanım](#-kullanım-rehberi) • [Lisans](#-lisans)
+[Özellikler](#-özellikler) • [Mimari](#-sistem-mimarisi) • [Hızlı Başlangıç](#-hızlı-başlangıç) • [API & Güvenlik](#-güvenlik-ve-api-anahtarı-mimarisi) • [Kullanım](#-kullanım-rehberi)
 
 </div>
 
@@ -175,9 +174,3 @@ Fatura dengeleme motoru şu aşamalardan geçer:
 | `npm run build` | Üretim (Production) derlemesini oluşturur |
 | `npm run start` | Derlenmiş üretim sunucusunu çalıştırır |
 | `npm run lint` | ESLint ile kod kalitesi ve stil kontrollerini yürütür |
-
----
-
-## 📄 Lisans
-
-Bu proje **[MIT Lisansı](LICENSE)** altında lisanslanmıştır. Detaylar için lisans dosyasına göz atabilirsiniz.
